@@ -17,11 +17,14 @@ NULL
 #'
 #' @param file Path to an existing `.typ` file.
 #' @param output Optional output path. Defaults to the input path with `.pdf`.
+#' @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
+#' `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
+#' `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Default to `NULL`.
 #'
 #' @return Output path, invisibly.
 #'
 #' @export
-typst_compile <- function(file, output = NULL, font_path = NULL) .Call(wrap__typst_compile, file, output, font_path)
+typst_compile <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL) .Call(wrap__typst_compile, file, output, font_path, pdf_standard)
 
 
 # nolint end

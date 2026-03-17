@@ -1,15 +1,56 @@
 mod fonts;
+mod standard;
 
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
+use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
 use typst::layout::PagedDocument;
 use typst_as_lib::TypstEngine;
+use typst_pdf::{PdfOptions, PdfStandards};
 
+/// Compiles a `.typ` Typst file into a PDF document.
+///
+/// The function loads the specified Typst file, compiles it using a `TypstEngine`,
+/// and writes the resulting PDF to disk. Fonts can optionally be loaded from a
+/// custom directory, and a specific PDF standard can be enforced.
+///
+/// # Arguments
+///
+/// * `file` - Path to the input `.typ` file to compile.
+/// * `output` - Optional path where the generated PDF will be written.  
+///   If `None`, the output path defaults to the input file with the `.pdf` extension.
+/// * `font_path` - Optional directory containing fonts to load for the Typst engine.
+///   If `None`, the default fonts from `typst_assets` are used.
+/// * `pdf_standard` - Optional string describing the PDF standard(s) to enforce
+///   (for example `pdf/a-2b`). If `None`, the default `PdfStandards` configuration is used.
+///
+/// # Returns
+///
+/// Returns `Ok(String)` containing the path to the generated PDF on success.
+///
+/// # Errors
+///
+/// Returns `Err(String)` if:
+///
+/// * The input file does not exist or is not a `.typ` file.
+/// * The input file name is not valid UTF-8.
+/// * The output path or PDF standard argument is empty.
+/// * Font loading fails.
+/// * Typst compilation fails.
+/// * PDF generation fails.
+/// * The PDF cannot be written to disk.
+///
+/// # Behavior
+///
+/// The Typst project root is set to the parent directory of the input file.
+/// The file name itself is passed to the Typst compiler, allowing relative
+/// imports within the same project directory.
 fn compile_file_to_pdf(
     file: &str,
     output: Option<&str>,
     font_path: Option<&str>,
+    pdf_standard: Option<&str>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -37,6 +78,14 @@ fn compile_file_to_pdf(
         None => input_path.with_extension("pdf"),
     };
 
+    let standards: PdfStandards = match pdf_standard {
+        Some(value) if value.trim().is_empty() => {
+            return Err("`pdf_standard` must not be empty".to_owned());
+        }
+        Some(value) => parse_pdf_standards(value)?,
+        None => PdfStandards::default(),
+    };
+
     let engine: TypstEngine = match font_path {
         Some(path) => {
             let fonts: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
@@ -59,8 +108,13 @@ fn compile_file_to_pdf(
         .output
         .map_err(|err| format!("Typst compilation failed: {err}"))?;
 
-    let pdf: Vec<u8> = typst_pdf::pdf(&doc, &Default::default())
-        .map_err(|err| format!("PDF export failed: {err:?}"))?;
+    let pdf_options = PdfOptions {
+        standards,
+        ..Default::default()
+    };
+
+    let pdf: Vec<u8> =
+        typst_pdf::pdf(&doc, &pdf_options).map_err(|err| format!("PDF export failed: {err:?}"))?;
 
     std::fs::write(&output_path, pdf)
         .map_err(|err| format!("Could not write PDF to {}: {err}", output_path.display()))?;
@@ -75,6 +129,9 @@ fn compile_file_to_pdf(
 ///
 /// @param file Path to an existing `.typ` file.
 /// @param output Optional output path. Defaults to the input path with `.pdf`.
+/// @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
+/// `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
+/// `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Default to `NULL`.
 ///
 /// @return Output path, invisibly.
 ///
@@ -84,11 +141,18 @@ fn typst_compile(
     file: &str,
     #[default = "NULL"] output: Nullable<String>,
     #[default = "NULL"] font_path: Nullable<String>,
+    #[default = "NULL"] pdf_standard: Nullable<String>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
+    let pdf_standard: Option<String> = pdf_standard.into_option();
 
-    match compile_file_to_pdf(file, output.as_deref(), font_path.as_deref()) {
+    match compile_file_to_pdf(
+        file,
+        output.as_deref(),
+        font_path.as_deref(),
+        pdf_standard.as_deref(),
+    ) {
         Ok(output_path) => output_path,
         Err(message) => throw_r_error(message),
     }
@@ -135,17 +199,18 @@ mod tests {
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
-        let output_path = PathBuf::from(output);
+        let output_path: PathBuf = PathBuf::from(output);
         assert_eq!(output_path, expected_pdf);
         assert!(
             expected_pdf.exists(),
             "expected default output PDF to exist"
         );
 
-        let bytes = fs::read(&expected_pdf).expect("could not read generated PDF");
+        let bytes: Vec<u8> = fs::read(&expected_pdf).expect("could not read generated PDF");
         assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
 
         fs::remove_dir_all(dir).expect("could not remove temp directory");
@@ -153,19 +218,20 @@ mod tests {
 
     #[test]
     fn compile_writes_pdf_to_custom_output_path() {
-        let dir = unique_temp_dir();
-        let typ_path = dir.join("source.typ");
-        let custom_pdf = dir.join("custom-output.pdf");
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        let custom_pdf: PathBuf = dir.join("custom-output.pdf");
         write_typ_file(&typ_path, "= Hello custom output");
 
-        let output = compile_file_to_pdf(
+        let output: String = compile_file_to_pdf(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
         )
         .expect("compilation should succeed");
 
-        let output_path = PathBuf::from(output);
+        let output_path: PathBuf = PathBuf::from(output);
         assert_eq!(output_path, custom_pdf);
         assert!(custom_pdf.exists(), "expected custom output PDF to exist");
         assert!(
@@ -173,7 +239,7 @@ mod tests {
             "default output path should not be used when custom output is provided"
         );
 
-        let bytes = fs::read(&custom_pdf).expect("could not read generated PDF");
+        let bytes: Vec<u8> = fs::read(&custom_pdf).expect("could not read generated PDF");
         assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
 
         fs::remove_dir_all(dir).expect("could not remove temp directory");
@@ -181,11 +247,12 @@ mod tests {
 
     #[test]
     fn compile_fails_for_missing_input_file() {
-        let dir = unique_temp_dir();
-        let missing = dir.join("missing.typ");
+        let dir: PathBuf = unique_temp_dir();
+        let missing: PathBuf = dir.join("missing.typ");
 
-        let err = compile_file_to_pdf(
+        let err: String = compile_file_to_pdf(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
         )
@@ -197,12 +264,13 @@ mod tests {
 
     #[test]
     fn compile_fails_for_non_typ_extension() {
-        let dir = unique_temp_dir();
-        let txt_path = dir.join("source.txt");
+        let dir: PathBuf = unique_temp_dir();
+        let txt_path: PathBuf = dir.join("source.txt");
         write_typ_file(&txt_path, "= wrong extension");
 
-        let err = compile_file_to_pdf(
+        let err: String = compile_file_to_pdf(
             txt_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
         )
@@ -214,13 +282,14 @@ mod tests {
 
     #[test]
     fn compile_fails_for_empty_output_path() {
-        let dir = unique_temp_dir();
-        let typ_path = dir.join("source.typ");
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
         write_typ_file(&typ_path, "= Empty output path");
 
-        let err = compile_file_to_pdf(
+        let err: String = compile_file_to_pdf(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(""),
+            None,
             None,
         )
         .expect_err("empty output path should return an error");
