@@ -4,13 +4,17 @@
 \alias{typst_compile}
 \title{Compile a \code{.typ} file to a \code{.pdf} file and return the output path.}
 \usage{
-typst_compile(file, output = NULL)
+typst_compile(file, output = NULL, font_path = NULL)
 }
 \arguments{
 \item{file}{Path to an existing \code{.typ} file.}
 
 \item{output}{Optional output path. Defaults to the input path with \code{.pdf}.}
 }
+\value{
+Output path, invisibly.
+}
 \description{
-Compile a \code{.typ} file to a \code{.pdf} file and return the output path.
+This functions uses the Tyspt Rust library to compile a
+\code{.typ} file to a \code{.pdf} file and return the output path.
 }

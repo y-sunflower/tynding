@@ -10,11 +10,18 @@
 #' @useDynLib tynding, .registration = TRUE
 NULL
 
-#' Compile a `.typ` file to a `.pdf` file and return the output path.
+#' @title Compile a `.typ` file to a `.pdf` file and return the output path.
+#'
+#' @description This functions uses the Tyspt Rust library to compile a
+#' `.typ` file to a `.pdf` file and return the output path.
+#'
 #' @param file Path to an existing `.typ` file.
 #' @param output Optional output path. Defaults to the input path with `.pdf`.
+#'
+#' @return Output path, invisibly.
+#'
 #' @export
-typst_compile <- function(file, output = NULL) .Call(wrap__typst_compile, file, output)
+typst_compile <- function(file, output = NULL, font_path = NULL) .Call(wrap__typst_compile, file, output, font_path)
 
 
 # nolint end

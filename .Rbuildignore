@@ -19,6 +19,7 @@ dev.R
 ^vignettes/\.quarto$
 ^vignettes/*_files$
 ^dev/*
+^tests/testthat/fonts/*
 ^tynding_
 ^data_internals/
 ^\.github$
