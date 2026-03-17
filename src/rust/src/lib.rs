@@ -405,6 +405,7 @@ mod tests {
         )
         .expect_err("empty output path should return an error");
 
+        dbg!(&err);
         assert!(err.contains("`output` must not be an empty path"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
