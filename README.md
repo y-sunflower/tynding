@@ -1,1 +1,1 @@
-# typst-R
+# tynding
