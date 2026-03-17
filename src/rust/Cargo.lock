@@ -1645,17 +1645,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tynding"
-version = "0.1.0"
-dependencies = [
- "extendr-api",
- "typst",
- "typst-as-lib",
- "typst-assets",
- "typst-pdf",
-]
-
-[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2280,6 +2269,17 @@ dependencies = [
  "serde",
  "serde_derive",
  "syntect",
+]
+
+[[package]]
+name = "tynding"
+version = "0.1.0"
+dependencies = [
+ "extendr-api",
+ "typst",
+ "typst-as-lib",
+ "typst-assets",
+ "typst-pdf",
 ]
 
 [[package]]
