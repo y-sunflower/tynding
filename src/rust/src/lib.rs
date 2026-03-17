@@ -168,7 +168,7 @@ extendr_module! {
 
 #[cfg(test)]
 mod tests {
-    use super::compile_file_to_pdf;
+    use super::{compile_file_to_pdf, load_fonts_from_dir};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -186,6 +186,36 @@ mod tests {
 
     fn write_typ_file(path: &Path, content: &str) {
         fs::write(path, content).expect("could not write typst source file");
+    }
+
+    fn assert_is_pdf(path: &Path) {
+        let bytes: Vec<u8> = fs::read(path).expect("could not read generated PDF");
+        assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
+    }
+
+    fn fixture_font_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/testthat/fonts")
+    }
+
+    fn copy_fixture_fonts(destination: &Path) {
+        let source_dir: PathBuf = fixture_font_dir();
+        assert!(
+            source_dir.is_dir(),
+            "fixture font directory does not exist: {}",
+            source_dir.display()
+        );
+
+        for file_name in ["Amarante-Regular.ttf", "Ultra-Regular.ttf"] {
+            let source: PathBuf = source_dir.join(file_name);
+            let destination_path: PathBuf = destination.join(file_name);
+            fs::copy(&source, &destination_path).unwrap_or_else(|err| {
+                panic!(
+                    "could not copy font fixture from {} to {}: {err}",
+                    source.display(),
+                    destination_path.display()
+                )
+            });
+        }
     }
 
     #[test]
@@ -209,9 +239,7 @@ mod tests {
             expected_pdf.exists(),
             "expected default output PDF to exist"
         );
-
-        let bytes: Vec<u8> = fs::read(&expected_pdf).expect("could not read generated PDF");
-        assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
+        assert_is_pdf(&expected_pdf);
 
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
@@ -238,9 +266,92 @@ mod tests {
             !dir.join("source.pdf").exists(),
             "default output path should not be used when custom output is provided"
         );
+        assert_is_pdf(&custom_pdf);
 
-        let bytes: Vec<u8> = fs::read(&custom_pdf).expect("could not read generated PDF");
-        assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn load_fonts_from_dir_reads_fixture_fonts_and_skips_other_entries() {
+        let dir: PathBuf = unique_temp_dir();
+        let font_dir: PathBuf = dir.join("fonts");
+        fs::create_dir_all(font_dir.join("nested"))
+            .expect("could not create nested font directory");
+        copy_fixture_fonts(&font_dir);
+        fs::write(font_dir.join("README.txt"), "not a font")
+            .expect("could not write non-font file");
+
+        let fonts: Vec<Vec<u8>> =
+            load_fonts_from_dir(font_dir.to_str().expect("path should be valid UTF-8"))
+                .expect("font loading should succeed");
+
+        let mut loaded_sizes: Vec<usize> = fonts.iter().map(Vec::len).collect();
+        loaded_sizes.sort_unstable();
+
+        let mut expected_sizes: Vec<usize> = ["Amarante-Regular.ttf", "Ultra-Regular.ttf"]
+            .into_iter()
+            .map(|file_name| {
+                fs::metadata(font_dir.join(file_name))
+                    .expect("fixture font should exist")
+                    .len() as usize
+            })
+            .collect();
+        expected_sizes.sort_unstable();
+
+        assert_eq!(loaded_sizes, expected_sizes);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_succeeds_with_custom_fixture_fonts() {
+        let dir: PathBuf = unique_temp_dir();
+        let font_dir: PathBuf = dir.join("fonts");
+        let typ_path: PathBuf = dir.join("custom-font.typ");
+        let expected_pdf: PathBuf = dir.join("custom-font.pdf");
+        fs::create_dir_all(&font_dir).expect("could not create font directory");
+        copy_fixture_fonts(&font_dir);
+        write_typ_file(
+            &typ_path,
+            "#set document(title: \"Fixture fonts\")\n#set text(font: \"Ultra\")\n= Hello from custom font",
+        );
+
+        let output: String = compile_file_to_pdf(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            Some(font_dir.to_str().expect("path should be valid UTF-8")),
+            None,
+        )
+        .expect("compilation with custom fonts should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_pdf);
+        assert!(expected_pdf.exists(), "expected PDF output to exist");
+        assert_is_pdf(&expected_pdf);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_succeeds_with_supported_pdf_standard() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("pdf-standard.typ");
+        let expected_pdf: PathBuf = dir.join("pdf-standard.pdf");
+        write_typ_file(
+            &typ_path,
+            "#set document(title: \"PDF standard test\")\n= Hello from PDF standard test",
+        );
+
+        let output: String = compile_file_to_pdf(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("1.7"),
+        )
+        .expect("compilation with a supported PDF standard should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_pdf);
+        assert!(expected_pdf.exists(), "expected PDF output to exist");
+        assert_is_pdf(&expected_pdf);
 
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
@@ -295,6 +406,60 @@ mod tests {
         .expect_err("empty output path should return an error");
 
         assert!(err.contains("`output` must not be an empty path"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_empty_pdf_standard() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Empty PDF standard");
+
+        let err: String = compile_file_to_pdf(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some(""),
+        )
+        .expect_err("empty PDF standard should return an error");
+
+        assert!(err.contains("`pdf_standard` must not be empty"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_unsupported_pdf_standard() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Unsupported PDF standard");
+
+        let err: String = compile_file_to_pdf(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("bogus-standard"),
+        )
+        .expect_err("unsupported PDF standard should return an error");
+
+        assert!(err.contains("Unsupported PDF standard: bogus-standard"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_unsupported_pdf_ua_2_standard() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Unsupported PDF/UA standard");
+
+        let err: String = compile_file_to_pdf(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("ua-2"),
+        )
+        .expect_err("unsupported PDF/UA-2 standard should return an error");
+
+        assert!(err.contains("does not support PDF/UA-2"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 }
