@@ -129,6 +129,7 @@ fn compile_file_to_pdf(
 ///
 /// @param file Path to an existing `.typ` file.
 /// @param output Optional output path. Defaults to the input path with `.pdf`.
+/// @param font_path Optional path to font files.
 /// @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
 /// `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
 /// `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Default to `NULL`.

@@ -11,6 +11,8 @@ typst_compile(file, output = NULL, font_path = NULL, pdf_standard = NULL)
 
 \item{output}{Optional output path. Defaults to the input path with \code{.pdf}.}
 
+\item{font_path}{Optional path to font files.}
+
 \item{pdf_standard}{Optional PDF standard specification. Options are: : \code{1.4},
 \code{1.5}, \code{1.6}, \code{1.7}, \code{2.0}, \verb{a-1b}, \verb{a-1a}, \verb{a-2b}, \verb{a-2u}, \verb{a-2a}, \verb{a-3b},
 \verb{a-3u}, \verb{a-3a}, \code{a-4}, \verb{a-4f}, \verb{a-4e}, \code{ua-1}. Default to \code{NULL}.}
