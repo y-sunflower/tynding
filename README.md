@@ -37,7 +37,7 @@ library(tynding)
 markup <- c(
   '#set document(title: "hello from tynding")',
   "= hello world",
-  "this PDF was compiled from R."
+  "this document was compiled from R."
 )
 
 typ_file <- typst_write(markup)
@@ -46,7 +46,7 @@ pdf_file <- typst_compile(typ_file)
 pdf_file
 ```
 
-`typst_write()` writes a character vector to a `.typ` file. `typst_compile()` compiles that file to PDF and returns the output path. If you do not pass `output`, the PDF is written next to the source file with the same name and a `.pdf` extension.
+`typst_write()` writes a character vector to a `.typ` file. `typst_compile()` compiles that file and returns the output path. If you do not pass `output`, the result is written next to the source file using the extension implied by the output format. If no output format can be inferred, PDF is used by default.
 
 <br>
 
@@ -78,6 +78,20 @@ pdf_file <- typst_compile(typ_file, pdf_standard = "ua-1")
 ```
 
 For `ua-1`, your document needs a title. Unsupported or invalid standards raise an error.
+
+- output format: pass `output_format` to export as `"pdf"`, `"html"`, `"png"`, or `"svg"`. If you omit it, `tynding` will infer the format from the `output` extension when possible and otherwise default to PDF.
+
+```r
+markup <- c(
+  '#set document(title: "html example")',
+  "= hello world"
+)
+
+typ_file <- typst_write(markup)
+html_file <- typst_compile(typ_file, output_format = "html")
+```
+
+Multi-page `png` and `svg` exports are merged into a single vertically stacked image so the function can keep returning one output path.
 
 <br>
 

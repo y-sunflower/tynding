@@ -1,33 +1,125 @@
 mod fonts;
+mod output;
 mod standard;
 
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
+use output::{infer_output_format, OutputFormat};
 use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
-use typst::layout::PagedDocument;
+use typst::layout::{Abs, PagedDocument};
+use typst::visualize::Color;
 use typst_as_lib::TypstEngine;
+use typst_html::HtmlDocument;
 use typst_pdf::{PdfOptions, PdfStandards};
 
-/// Compiles a `.typ` Typst file into a PDF document.
+fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
+    match font_path {
+        Some(path) => {
+            let fonts: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
+            Ok(TypstEngine::builder()
+                .with_file_system_resolver(root)
+                .fonts(fonts)
+                .build())
+        }
+        None => {
+            let fonts = typst_assets::fonts();
+            Ok(TypstEngine::builder()
+                .with_file_system_resolver(root)
+                .fonts(fonts)
+                .build())
+        }
+    }
+}
+
+fn compile_paged_document(
+    engine: &TypstEngine,
+    main_file: &str,
+) -> std::result::Result<PagedDocument, String> {
+    engine
+        .compile(main_file)
+        .output
+        .map_err(|err| format!("Typst compilation failed: {err}"))
+}
+
+fn compile_html_document(
+    engine: &TypstEngine,
+    main_file: &str,
+) -> std::result::Result<HtmlDocument, String> {
+    engine
+        .compile(main_file)
+        .output
+        .map_err(|err| format!("Typst compilation failed: {err}"))
+}
+
+fn write_pdf(
+    document: &PagedDocument,
+    output_path: &Path,
+    standards: PdfStandards,
+) -> std::result::Result<(), String> {
+    let pdf_options: PdfOptions<'_> = PdfOptions {
+        standards,
+        ..Default::default()
+    };
+
+    let pdf: Vec<u8> = typst_pdf::pdf(document, &pdf_options)
+        .map_err(|err| format!("PDF export failed: {err:?}"))?;
+
+    std::fs::write(output_path, pdf)
+        .map_err(|err| format!("Could not write PDF to {}: {err}", output_path.display()))
+}
+
+fn write_html(document: &HtmlDocument, output_path: &Path) -> std::result::Result<(), String> {
+    let html: String =
+        typst_html::html(document).map_err(|err| format!("HTML export failed: {err:?}"))?;
+
+    std::fs::write(output_path, html.as_bytes())
+        .map_err(|err| format!("Could not write HTML to {}: {err}", output_path.display()))
+}
+
+fn write_png(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
+    // Keep the public API returning one output path by vertically merging pages.
+    let pixmap =
+        typst_render::render_merged(document, 144.0 / 72.0, Abs::pt(1.0), Some(Color::WHITE));
+    let png: Vec<u8> = pixmap
+        .encode_png()
+        .map_err(|err| format!("PNG export failed: {err}"))?;
+
+    std::fs::write(output_path, png)
+        .map_err(|err| format!("Could not write PNG to {}: {err}", output_path.display()))
+}
+
+fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
+    // Keep the public API returning one output path by vertically merging pages.
+    let svg: String = typst_svg::svg_merged(document, Abs::pt(1.0));
+
+    std::fs::write(output_path, svg.as_bytes())
+        .map_err(|err| format!("Could not write SVG to {}: {err}", output_path.display()))
+}
+
+/// Compiles a `.typ` Typst file into a supported output format.
 ///
 /// The function loads the specified Typst file, compiles it using a `TypstEngine`,
-/// and writes the resulting PDF to disk. Fonts can optionally be loaded from a
-/// custom directory, and a specific PDF standard can be enforced.
+/// and writes the resulting output to disk. Fonts can optionally be loaded from a
+/// custom directory. PDF output can additionally enforce a specific PDF standard.
 ///
 /// # Arguments
 ///
 /// * `file` - Path to the input `.typ` file to compile.
-/// * `output` - Optional path where the generated PDF will be written.  
-///   If `None`, the output path defaults to the input file with the `.pdf` extension.
+/// * `output` - Optional path where the generated file will be written. If `None`,
+///   the output path defaults to the input file with the extension implied by the
+///   effective output format.
 /// * `font_path` - Optional directory containing fonts to load for the Typst engine.
 ///   If `None`, the default fonts from `typst_assets` are used.
 /// * `pdf_standard` - Optional string describing the PDF standard(s) to enforce
-///   (for example `pdf/a-2b`). If `None`, the default `PdfStandards` configuration is used.
+///   (for example `pdf/a-2b`). This is only supported for PDF output.
+/// * `output_format` - Optional output format. Supported values are `pdf`, `html`,
+///   `png`, and `svg`. If `None`, the format is inferred from the output path when
+///   possible and otherwise defaults to `pdf`.
 ///
 /// # Returns
 ///
-/// Returns `Ok(String)` containing the path to the generated PDF on success.
+/// Returns `Ok(String)` containing the path to the generated file on success.
 ///
 /// # Errors
 ///
@@ -35,22 +127,25 @@ use typst_pdf::{PdfOptions, PdfStandards};
 ///
 /// * The input file does not exist or is not a `.typ` file.
 /// * The input file name is not valid UTF-8.
-/// * The output path or PDF standard argument is empty.
+/// * The output path, PDF standard, or output format argument is empty.
 /// * Font loading fails.
 /// * Typst compilation fails.
-/// * PDF generation fails.
-/// * The PDF cannot be written to disk.
+/// * Export generation fails.
+/// * The generated file cannot be written to disk.
 ///
 /// # Behavior
 ///
 /// The Typst project root is set to the parent directory of the input file.
 /// The file name itself is passed to the Typst compiler, allowing relative
-/// imports within the same project directory.
-fn compile_file_to_pdf(
+/// imports within the same project directory. Multi-page PNG and SVG exports are
+/// merged into a single vertically stacked image so the function can keep returning
+/// a single output path.
+fn compile_file(
     file: &str,
     output: Option<&str>,
     font_path: Option<&str>,
     pdf_standard: Option<&str>,
+    output_format: Option<&str>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -70,69 +165,75 @@ fn compile_file_to_pdf(
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| format!("Invalid UTF-8 file name: {}", file))?;
-    let output_path: PathBuf = match output {
+    let explicit_output_path: Option<PathBuf> = match output {
         Some(path) if path.trim().is_empty() => {
             return Err("`output` must not be an empty path".to_owned());
         }
-        Some(path) => PathBuf::from(path),
-        None => input_path.with_extension("pdf"),
+        Some(path) => Some(PathBuf::from(path)),
+        None => None,
     };
+    let output_format: OutputFormat =
+        infer_output_format(explicit_output_path.as_deref(), output_format)?;
+    let output_path: PathBuf = explicit_output_path
+        .unwrap_or_else(|| input_path.with_extension(output_format.extension()));
 
-    let standards: PdfStandards = match pdf_standard {
-        Some(value) if value.trim().is_empty() => {
-            return Err("`pdf_standard` must not be empty".to_owned());
+    let standards: PdfStandards = if output_format == OutputFormat::Pdf {
+        match pdf_standard {
+            Some(value) if value.trim().is_empty() => {
+                return Err("`pdf_standard` must not be empty".to_owned());
+            }
+            Some(value) => parse_pdf_standards(value)?,
+            None => PdfStandards::default(),
         }
-        Some(value) => parse_pdf_standards(value)?,
-        None => PdfStandards::default(),
-    };
-
-    let engine: TypstEngine = match font_path {
-        Some(path) => {
-            let fonts: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
-            TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build()
+    } else {
+        if pdf_standard.is_some() {
+            return Err(
+                "`pdf_standard` is only supported when `output_format` is `pdf`".to_owned(),
+            );
         }
-        None => {
-            let fonts = typst_assets::fonts();
-            TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build()
+        PdfStandards::default()
+    };
+
+    let engine: TypstEngine = build_engine(root, font_path)?;
+
+    match output_format {
+        OutputFormat::Pdf => {
+            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            write_pdf(&doc, &output_path, standards)?;
         }
-    };
-
-    let doc: PagedDocument = engine
-        .compile(main_file)
-        .output
-        .map_err(|err| format!("Typst compilation failed: {err}"))?;
-
-    let pdf_options = PdfOptions {
-        standards,
-        ..Default::default()
-    };
-
-    let pdf: Vec<u8> =
-        typst_pdf::pdf(&doc, &pdf_options).map_err(|err| format!("PDF export failed: {err:?}"))?;
-
-    std::fs::write(&output_path, pdf)
-        .map_err(|err| format!("Could not write PDF to {}: {err}", output_path.display()))?;
+        OutputFormat::Html => {
+            let doc: HtmlDocument = compile_html_document(&engine, main_file)?;
+            write_html(&doc, &output_path)?;
+        }
+        OutputFormat::Png => {
+            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            write_png(&doc, &output_path)?;
+        }
+        OutputFormat::Svg => {
+            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            write_svg(&doc, &output_path)?;
+        }
+    }
 
     Ok(output_path.to_string_lossy().into_owned())
 }
 
-/// @title Compile a `.typ` file to a `.pdf` file and return the output path.
+/// @title Compile a `.typ` file and return the output path.
 ///
-/// @description This functions uses the Tyspt Rust library to compile a
-/// `.typ` file to a `.pdf` file and return the output path.
+/// @description This function uses the Typst Rust library to compile a
+/// `.typ` file to a supported output format and return the output path.
 ///
 /// @param file Path to an existing `.typ` file.
-/// @param output Optional output path. Defaults to the input path with `.pdf`.
+/// @param output Optional output path. Defaults to the input path with the
+/// extension implied by the output format.
 /// @param font_path Optional path to font files.
 /// @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
 /// `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
-/// `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Default to `NULL`.
+/// `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF output.
+/// @param output_format Optional output format. Supported values are `pdf`,
+/// `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
+/// `output` when possible, otherwise use `pdf`". Multi-page `png` and `svg`
+/// outputs are merged into a single image.
 ///
 /// @return Output path, invisibly.
 ///
@@ -143,16 +244,19 @@ fn typst_compile(
     #[default = "NULL"] output: Nullable<String>,
     #[default = "NULL"] font_path: Nullable<String>,
     #[default = "NULL"] pdf_standard: Nullable<String>,
+    #[default = "NULL"] output_format: Nullable<String>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
     let pdf_standard: Option<String> = pdf_standard.into_option();
+    let output_format: Option<String> = output_format.into_option();
 
-    match compile_file_to_pdf(
+    match compile_file(
         file,
         output.as_deref(),
         font_path.as_deref(),
         pdf_standard.as_deref(),
+        output_format.as_deref(),
     ) {
         Ok(output_path) => output_path,
         Err(message) => throw_r_error(message),
@@ -169,7 +273,7 @@ extendr_module! {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_file_to_pdf, load_fonts_from_dir};
+    use super::{compile_file, load_fonts_from_dir};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -192,6 +296,27 @@ mod tests {
     fn assert_is_pdf(path: &Path) {
         let bytes: Vec<u8> = fs::read(path).expect("could not read generated PDF");
         assert!(bytes.starts_with(b"%PDF"), "generated file is not a PDF");
+    }
+
+    fn assert_is_html(path: &Path) {
+        let html: String = fs::read_to_string(path).expect("could not read generated HTML");
+        assert!(
+            html.contains("<!DOCTYPE html>"),
+            "generated file is not an HTML document"
+        );
+    }
+
+    fn assert_is_png(path: &Path) {
+        let bytes: Vec<u8> = fs::read(path).expect("could not read generated PNG");
+        assert!(
+            bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
+            "generated file is not a PNG"
+        );
+    }
+
+    fn assert_is_svg(path: &Path) {
+        let svg: String = fs::read_to_string(path).expect("could not read generated SVG");
+        assert!(svg.contains("<svg"), "generated file is not an SVG");
     }
 
     fn fixture_font_dir() -> PathBuf {
@@ -226,8 +351,9 @@ mod tests {
         let expected_pdf: PathBuf = dir.join("default.pdf");
         write_typ_file(&typ_path, "= Hello from test");
 
-        let output: String = compile_file_to_pdf(
+        let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -252,9 +378,10 @@ mod tests {
         let custom_pdf: PathBuf = dir.join("custom-output.pdf");
         write_typ_file(&typ_path, "= Hello custom output");
 
-        let output: String = compile_file_to_pdf(
+        let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
         )
@@ -317,10 +444,11 @@ mod tests {
             "#set document(title: \"Fixture fonts\")\n#set text(font: \"Ultra\")\n= Hello from custom font",
         );
 
-        let output: String = compile_file_to_pdf(
+        let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             Some(font_dir.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
         )
         .expect("compilation with custom fonts should succeed");
@@ -342,11 +470,12 @@ mod tests {
             "#set document(title: \"PDF standard test\")\n= Hello from PDF standard test",
         );
 
-        let output: String = compile_file_to_pdf(
+        let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
             Some("1.7"),
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -362,8 +491,9 @@ mod tests {
         let dir: PathBuf = unique_temp_dir();
         let missing: PathBuf = dir.join("missing.typ");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -380,8 +510,9 @@ mod tests {
         let txt_path: PathBuf = dir.join("source.txt");
         write_typ_file(&txt_path, "= wrong extension");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             txt_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -398,15 +529,15 @@ mod tests {
         let typ_path: PathBuf = dir.join("source.typ");
         write_typ_file(&typ_path, "= Empty output path");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(""),
+            None,
             None,
             None,
         )
         .expect_err("empty output path should return an error");
 
-        dbg!(&err);
         assert!(err.contains("`output` must not be an empty path"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
@@ -417,11 +548,12 @@ mod tests {
         let typ_path: PathBuf = dir.join("source.typ");
         write_typ_file(&typ_path, "= Empty PDF standard");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
             Some(""),
+            None,
         )
         .expect_err("empty PDF standard should return an error");
 
@@ -435,11 +567,12 @@ mod tests {
         let typ_path: PathBuf = dir.join("source.typ");
         write_typ_file(&typ_path, "= Unsupported PDF standard");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
             Some("bogus-standard"),
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -453,15 +586,169 @@ mod tests {
         let typ_path: PathBuf = dir.join("source.typ");
         write_typ_file(&typ_path, "= Unsupported PDF/UA standard");
 
-        let err: String = compile_file_to_pdf(
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
             Some("ua-2"),
+            None,
         )
         .expect_err("unsupported PDF/UA-2 standard should return an error");
 
         assert!(err.contains("does not support PDF/UA-2"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_uses_default_html_path_when_output_format_is_html() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("default-html.typ");
+        let expected_html: PathBuf = dir.join("default-html.html");
+        write_typ_file(&typ_path, "= Hello HTML");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            Some("html"),
+        )
+        .expect("HTML compilation should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_html);
+        assert!(expected_html.exists(), "expected HTML output to exist");
+        assert_is_html(&expected_html);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_infers_html_output_format_from_output_extension() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        let custom_html: PathBuf = dir.join("custom-output.html");
+        write_typ_file(&typ_path, "= Hello inferred HTML");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            Some(custom_html.to_str().expect("path should be valid UTF-8")),
+            None,
+            None,
+            None,
+        )
+        .expect("compilation should infer HTML from the output extension");
+
+        assert_eq!(PathBuf::from(output), custom_html);
+        assert!(custom_html.exists(), "expected HTML output to exist");
+        assert_is_html(&custom_html);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_writes_merged_png_output() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("merged-png.typ");
+        let expected_png: PathBuf = dir.join("merged-png.png");
+        write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            Some("png"),
+        )
+        .expect("PNG compilation should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_png);
+        assert!(expected_png.exists(), "expected PNG output to exist");
+        assert_is_png(&expected_png);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_writes_merged_svg_output() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("merged-svg.typ");
+        let expected_svg: PathBuf = dir.join("merged-svg.svg");
+        write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            Some("svg"),
+        )
+        .expect("SVG compilation should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_svg);
+        assert!(expected_svg.exists(), "expected SVG output to exist");
+        assert_is_svg(&expected_svg);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_empty_output_format() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Empty output format");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            Some(""),
+        )
+        .expect_err("empty output format should return an error");
+
+        assert!(err.contains("`output_format` must not be empty"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_unknown_output_extension_without_output_format() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Unknown output extension");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            Some(
+                dir.join("output.weird")
+                    .to_str()
+                    .expect("path should be valid UTF-8"),
+            ),
+            None,
+            None,
+            None,
+        )
+        .expect_err("unknown output extension should return an error");
+
+        assert!(err.contains("Could not infer output format from output path"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_when_pdf_standard_is_used_for_non_pdf_output() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Non PDF output");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("1.7"),
+            Some("html"),
+        )
+        .expect_err("pdf_standard should be rejected for non-PDF output");
+
+        assert!(err.contains("`pdf_standard` is only supported when `output_format` is `pdf`"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 }

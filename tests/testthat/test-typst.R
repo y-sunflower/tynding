@@ -17,6 +17,15 @@ test_that("Valid Typst compile usage", {
   typst_compile(typ_file, output = pdf_file)
   expect_true(file.exists(pdf_file))
 
+  html_file <- typst_compile(typ_file, output_format = "html")
+  expect_true(file.exists(html_file))
+
+  png_file <- typst_compile(typ_file, output_format = "png")
+  expect_true(file.exists(png_file))
+
+  svg_file <- typst_compile(typ_file, output_format = "svg")
+  expect_true(file.exists(svg_file))
+
   markup <- c(
     '#set text(font: "Ultra")',
     "= Hello World",
@@ -35,8 +44,8 @@ test_that("Valid Typst compile usage", {
   typ_file <- typst_write(markup)
   pdf_file <- typst_compile(
     typ_file,
-    font_path = test_font_path #,
-    #pdf_standard = "ua-1"
+    font_path = test_font_path,
+    pdf_standard = "ua-1"
   )
   expect_true(file.exists(pdf_file))
 })
@@ -60,5 +69,14 @@ test_that("Invalid Typst CLI usage", {
       pdf_standard = "ua-1"
     ),
     regexp = '"PDF/UA-1 error: missing document title"'
+  )
+
+  expect_error(
+    typst_compile(
+      typ_file,
+      pdf_standard = "1.7",
+      output_format = "html"
+    ),
+    regexp = "`pdf_standard` is only supported when `output_format` is `pdf`"
   )
 })

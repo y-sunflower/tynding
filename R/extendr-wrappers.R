@@ -10,22 +10,27 @@
 #' @useDynLib tynding, .registration = TRUE
 NULL
 
-#' @title Compile a `.typ` file to a `.pdf` file and return the output path.
+#' @title Compile a `.typ` file and return the output path.
 #'
-#' @description This functions uses the Tyspt Rust library to compile a
-#' `.typ` file to a `.pdf` file and return the output path.
+#' @description This function uses the Typst Rust library to compile a
+#' `.typ` file to a supported output format and return the output path.
 #'
 #' @param file Path to an existing `.typ` file.
-#' @param output Optional output path. Defaults to the input path with `.pdf`.
+#' @param output Optional output path. Defaults to the input path with the
+#' extension implied by the output format.
 #' @param font_path Optional path to font files.
 #' @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
 #' `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
-#' `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Default to `NULL`.
+#' `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF output.
+#' @param output_format Optional output format. Supported values are `pdf`,
+#' `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
+#' `output` when possible, otherwise use `pdf`". Multi-page `png` and `svg`
+#' outputs are merged into a single image.
 #'
 #' @return Output path, invisibly.
 #'
 #' @export
-typst_compile <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL) .Call(wrap__typst_compile, file, output, font_path, pdf_standard)
+typst_compile <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL, output_format = NULL) .Call(wrap__typst_compile, file, output, font_path, pdf_standard, output_format)
 
 
 # nolint end

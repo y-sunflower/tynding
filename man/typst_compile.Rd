@@ -2,25 +2,37 @@
 % Please edit documentation in R/extendr-wrappers.R
 \name{typst_compile}
 \alias{typst_compile}
-\title{Compile a \code{.typ} file to a \code{.pdf} file and return the output path.}
+\title{Compile a \code{.typ} file and return the output path.}
 \usage{
-typst_compile(file, output = NULL, font_path = NULL, pdf_standard = NULL)
+typst_compile(
+  file,
+  output = NULL,
+  font_path = NULL,
+  pdf_standard = NULL,
+  output_format = NULL
+)
 }
 \arguments{
 \item{file}{Path to an existing \code{.typ} file.}
 
-\item{output}{Optional output path. Defaults to the input path with \code{.pdf}.}
+\item{output}{Optional output path. Defaults to the input path with the
+extension implied by the output format.}
 
 \item{font_path}{Optional path to font files.}
 
 \item{pdf_standard}{Optional PDF standard specification. Options are: : \code{1.4},
 \code{1.5}, \code{1.6}, \code{1.7}, \code{2.0}, \verb{a-1b}, \verb{a-1a}, \verb{a-2b}, \verb{a-2u}, \verb{a-2a}, \verb{a-3b},
-\verb{a-3u}, \verb{a-3a}, \code{a-4}, \verb{a-4f}, \verb{a-4e}, \code{ua-1}. Default to \code{NULL}.}
+\verb{a-3u}, \verb{a-3a}, \code{a-4}, \verb{a-4f}, \verb{a-4e}, \code{ua-1}. Only used for PDF output.}
+
+\item{output_format}{Optional output format. Supported values are \code{pdf},
+\code{html}, \code{png}, and \code{svg}. Defaults to \code{NULL}, which means "infer from
+\code{output} when possible, otherwise use \code{pdf}". Multi-page \code{png} and \code{svg}
+outputs are merged into a single image.}
 }
 \value{
 Output path, invisibly.
 }
 \description{
-This functions uses the Tyspt Rust library to compile a
-\code{.typ} file to a \code{.pdf} file and return the output path.
+This function uses the Typst Rust library to compile a
+\code{.typ} file to a supported output format and return the output path.
 }

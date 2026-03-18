@@ -13,10 +13,6 @@
 #' (for example, if `TRUE`, then Typst has been compiled
 #' successfully).
 #'
-#' @note
-#' It requires to have the Typst compiler installed.
-#' See [typst.app/open-source/](https://typst.app/open-source/).
-#'
 #' @examples
 #' \dontrun{
 #' typst_code <- c("= Hello World", "This is a Typst document.")

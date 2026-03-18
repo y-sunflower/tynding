@@ -22,10 +22,6 @@ Check that a character vector is valid Typst markup
 by compiling it. If no error, it assumes the code
 is valid.
 }
-\note{
-It requires to have the Typst compiler installed.
-See \href{https://typst.app/open-source/}{typst.app/open-source/}.
-}
 \examples{
 \dontrun{
 typst_code <- c("= Hello World", "This is a Typst document.")
