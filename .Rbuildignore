@@ -28,6 +28,7 @@ dev.R
 ^BinaryFiles
 ^sandbox/
 ^release.sh
+^example.png
 \.typ$
 \.pdf$
 ^\.vscode$

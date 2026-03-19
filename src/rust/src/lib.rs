@@ -1,12 +1,15 @@
 mod fonts;
+mod inputs;
 mod output;
 mod standard;
 
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
+use inputs::build_sys_inputs;
 use output::{infer_output_format, OutputFormat};
 use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
+use typst::foundations::Dict;
 use typst::layout::{Abs, PagedDocument};
 use typst::visualize::Color;
 use typst_as_lib::TypstEngine;
@@ -35,9 +38,10 @@ fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<Typ
 fn compile_paged_document(
     engine: &TypstEngine,
     main_file: &str,
+    sys_inputs: &Dict,
 ) -> std::result::Result<PagedDocument, String> {
     engine
-        .compile(main_file)
+        .compile_with_input(main_file, sys_inputs.clone())
         .output
         .map_err(|err| format!("Typst compilation failed: {err}"))
 }
@@ -45,9 +49,10 @@ fn compile_paged_document(
 fn compile_html_document(
     engine: &TypstEngine,
     main_file: &str,
+    sys_inputs: &Dict,
 ) -> std::result::Result<HtmlDocument, String> {
     engine
-        .compile(main_file)
+        .compile_with_input(main_file, sys_inputs.clone())
         .output
         .map_err(|err| format!("Typst compilation failed: {err}"))
 }
@@ -146,6 +151,7 @@ fn compile_file(
     font_path: Option<&str>,
     pdf_standard: Option<&str>,
     output_format: Option<&str>,
+    inputs: Option<&[String]>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -165,6 +171,7 @@ fn compile_file(
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| format!("Invalid UTF-8 file name: {}", file))?;
+
     let explicit_output_path: Option<PathBuf> = match output {
         Some(path) if path.trim().is_empty() => {
             return Err("`output` must not be an empty path".to_owned());
@@ -172,6 +179,7 @@ fn compile_file(
         Some(path) => Some(PathBuf::from(path)),
         None => None,
     };
+
     let output_format: OutputFormat =
         infer_output_format(explicit_output_path.as_deref(), output_format)?;
     let output_path: PathBuf = explicit_output_path
@@ -195,22 +203,23 @@ fn compile_file(
     };
 
     let engine: TypstEngine = build_engine(root, font_path)?;
+    let sys_inputs: Dict = build_sys_inputs(inputs)?;
 
     match output_format {
         OutputFormat::Pdf => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
             write_pdf(&doc, &output_path, standards)?;
         }
         OutputFormat::Html => {
-            let doc: HtmlDocument = compile_html_document(&engine, main_file)?;
+            let doc: HtmlDocument = compile_html_document(&engine, main_file, &sys_inputs)?;
             write_html(&doc, &output_path)?;
         }
         OutputFormat::Png => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
             write_png(&doc, &output_path)?;
         }
         OutputFormat::Svg => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file)?;
+            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
             write_svg(&doc, &output_path)?;
         }
     }
@@ -224,32 +233,28 @@ fn compile_file(
 /// `.typ` file to a supported output format and return the output path.
 ///
 /// @param file Path to an existing `.typ` file.
-/// @param output Optional output path. Defaults to the input path with the
-/// extension implied by the output format.
+/// @param output Optional output path.
 /// @param font_path Optional path to font files.
-/// @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
-/// `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
-/// `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF output.
-/// @param output_format Optional output format. Supported values are `pdf`,
-/// `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
-/// `output` when possible, otherwise use `pdf`". Multi-page `png` and `svg`
-/// outputs are merged into a single image.
+/// @param pdf_standard Optional PDF standard specification.
+/// @param output_format Optional output format.
 ///
-/// @return Output path, invisibly.
+/// @return Output path
 ///
-/// @export
+/// @keywords internal
 #[extendr]
-fn typst_compile(
+fn typst_compile_rust(
     file: &str,
     #[default = "NULL"] output: Nullable<String>,
     #[default = "NULL"] font_path: Nullable<String>,
     #[default = "NULL"] pdf_standard: Nullable<String>,
     #[default = "NULL"] output_format: Nullable<String>,
+    #[default = "NULL"] inputs: Nullable<Vec<String>>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
     let pdf_standard: Option<String> = pdf_standard.into_option();
     let output_format: Option<String> = output_format.into_option();
+    let inputs: Option<Vec<String>> = inputs.into_option();
 
     match compile_file(
         file,
@@ -257,6 +262,7 @@ fn typst_compile(
         font_path.as_deref(),
         pdf_standard.as_deref(),
         output_format.as_deref(),
+        inputs.as_deref(),
     ) {
         Ok(output_path) => output_path,
         Err(message) => throw_r_error(message),
@@ -268,7 +274,7 @@ fn typst_compile(
 // See corresponding C code in `entrypoint.c`.
 extendr_module! {
     mod tynding;
-    fn typst_compile;
+    fn typst_compile_rust;
 }
 
 #[cfg(test)]
@@ -357,6 +363,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
@@ -381,6 +388,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -450,6 +458,7 @@ mod tests {
             Some(font_dir.to_str().expect("path should be valid UTF-8")),
             None,
             None,
+            None,
         )
         .expect("compilation with custom fonts should succeed");
 
@@ -476,6 +485,7 @@ mod tests {
             None,
             Some("1.7"),
             None,
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -493,6 +503,7 @@ mod tests {
 
         let err: String = compile_file(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -516,6 +527,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("non-.typ input should return an error");
 
@@ -532,6 +544,7 @@ mod tests {
         let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(""),
+            None,
             None,
             None,
             None,
@@ -554,6 +567,7 @@ mod tests {
             None,
             Some(""),
             None,
+            None,
         )
         .expect_err("empty PDF standard should return an error");
 
@@ -573,6 +587,7 @@ mod tests {
             None,
             Some("bogus-standard"),
             None,
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -591,6 +606,7 @@ mod tests {
             None,
             None,
             Some("ua-2"),
+            None,
             None,
         )
         .expect_err("unsupported PDF/UA-2 standard should return an error");
@@ -612,6 +628,7 @@ mod tests {
             None,
             None,
             Some("html"),
+            None,
         )
         .expect("HTML compilation should succeed");
 
@@ -632,6 +649,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_html.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -658,6 +676,7 @@ mod tests {
             None,
             None,
             Some("png"),
+            None,
         )
         .expect("PNG compilation should succeed");
 
@@ -681,6 +700,7 @@ mod tests {
             None,
             None,
             Some("svg"),
+            None,
         )
         .expect("SVG compilation should succeed");
 
@@ -703,6 +723,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
         )
         .expect_err("empty output format should return an error");
 
@@ -726,6 +747,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unknown output extension should return an error");
 
@@ -745,6 +767,7 @@ mod tests {
             None,
             Some("1.7"),
             Some("html"),
+            None,
         )
         .expect_err("pdf_standard should be rejected for non-PDF output");
 

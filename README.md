@@ -55,6 +55,8 @@ pdf_file
 - fonts: pass `font_path` to load `.ttf`, `.otf`, or `.ttc` files from a directory before compiling.
 
 ```r
+library(tynding)
+
 markup <- c(
   '#set document(title: "custom font example")',
   '#set text(font: "Ultra")',
@@ -82,6 +84,8 @@ For `ua-1`, your document needs a title. Unsupported or invalid standards raise 
 - output format: pass `output_format` to export as `"pdf"`, `"html"`, `"png"`, or `"svg"`. If you omit it, `tynding` will infer the format from the `output` extension when possible and otherwise default to PDF.
 
 ```r
+library(tynding)
+
 markup <- c(
   '#set document(title: "html example")',
   "= hello world"
@@ -92,6 +96,44 @@ html_file <- typst_compile(typ_file, output_format = "html")
 ```
 
 Multi-page `png` and `svg` exports are merged into a single vertically stacked image so the function can keep returning one output path.
+
+## Advanced usage with inputs
+
+You can send inputs thanks to Typst sys inputs handling. Basically, you do your things with R, and then send whatever you want to Typst! For example:
+
+```r
+library(tynding)
+
+typst_compile(
+  "file.typ",
+  title = "Quarterly report",
+  author = "Joseph",
+  persons = list(
+    list(name = "Joseph", age = 25),
+    list(name = "Justine", age = 24),
+    list(name = "Isaac", age = 2)
+  )
+)
+```
+
+Then your `file.typ` looks like this:
+
+```typ
+#set page(width: 10cm, height: 4cm, fill: rgb("#fca311"))
+
+#let title = sys.inputs.at("title")
+#let author = sys.inputs.at("author")
+#let persons = json.decode(sys.inputs.at("persons"))
+
+= #title
+*Author:* #author
+
+#for person in persons [
+  #strong(person.name) is #text(fill: red.darken(50%), weight: "bold", [#person.age]) years old. \
+]
+```
+
+![](./example.png)
 
 <br>
 
