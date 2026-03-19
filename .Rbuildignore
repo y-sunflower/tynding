@@ -28,7 +28,8 @@ dev.R
 ^BinaryFiles
 ^sandbox/
 ^release.sh
-^example.png
+^example1.png
+^example2.png
 \.typ$
 \.pdf$
 ^\.vscode$
