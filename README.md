@@ -1,6 +1,15 @@
 # tynding: Typst bindings for R
 
-`tynding` is an R package that compiles Typst documents from R through a Rust backend. It exposes a small API for writing and compiling `.typ` files.
+<img src="https://github.com/JosephBARBIERDARNAL/static/blob/main/r-libs/tynding/image.png?raw=true" alt="tynding logo" align="right" width="150px"/>
+
+`tynding` is an R package that compiles Typst documents from R through a Rust backend.
+
+- it exposes a small API for writing, evaluating and compiling `.typ` files
+- it lets you specify:
+  - output format (pdf, png, svg, html)
+  - font path to look for font files
+  - pdf standard (for accessibility)
+  - _any other kind of inputs_, for advanced templating
 
 <br>
 
