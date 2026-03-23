@@ -25,9 +25,8 @@ pak::pak("y-sunflower/tynding")
 The package builds Rust code during installation, so you need:
 
 - `R >= 4.2`
-- `cargo`
-- `rustc >= 1.89.0`
-- `xz`
+- `rustc >= 1.89.0` (see [installation](https://rust-lang.org/tools/install/))
+- (Windows users only) GNU toolchain: run `rustup target add x86_64-pc-windows-gnu`
 
 If you prefer `remotes`, this also works:
 

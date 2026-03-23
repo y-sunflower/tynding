@@ -1,14 +1,14 @@
 Package: tynding
-Title: Typst Bindings for R
+Title: 'Typst' Bindings for R
 Version: 0.1.1
 Authors@R: 
     person("Joseph", "Barbier", , "joseph@ysunflower.com", role = c("aut", "cre"))
-Description: Compile Typst document from R using the Typst Rust library.
-License: file LICENSE
+Description: Compile 'Typst' document from R using the 'Typst' 'Rust' library.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-URL: https://y-sunflower.github.io/tynding/
+URL: https://github.com/y-sunflower/tynding
 BugReports: https://github.com/y-sunflower/tynding/issues
 Depends:
     R (>= 4.2)
