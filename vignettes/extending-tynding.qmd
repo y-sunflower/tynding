@@ -1,0 +1,17 @@
+---
+title: Extending tynding
+vignette: >
+  %\VignetteIndexEntry{extending-tynding}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+knitr:
+  opts_chunk:
+    collapse: true
+    comment: '#>'
+    message: false
+---
+
+
+```{r}
+library(tynding)
+```

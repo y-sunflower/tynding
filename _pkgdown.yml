@@ -1,0 +1,23 @@
+url: https://y-sunflower.github.io/tynding/
+home:
+  title: Typst Bindings for R
+
+authors:
+  Joseph Barbier:
+    href: https://ysunflower.com/
+
+template:
+  bootstrap: 5
+  bootswatch: journal
+  github: https://github.com/y-sunflower/tynding
+  light-switch: true
+
+pkgdown:
+  as_is: yes
+
+articles:
+  - title: Guides
+    navbar: Guides
+    contents:
+      - extending-tynding
+      - advanced-example
