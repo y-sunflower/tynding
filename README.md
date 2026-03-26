@@ -15,24 +15,23 @@
 
 ## Installation
 
-Install it from GitHub with `pak`:
+From r-universe (recommended):
 
 ```r
-#install.packages("pak")
-pak::pak("y-sunflower/tynding")
+install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
 
-The package builds Rust code during installation, so you need:
+Or development version from GitHub (the package builds Rust code during installation, so you need):
 
 - `R >= 4.2`
 - `rustc >= 1.89.0` (see [installation](https://rust-lang.org/tools/install/))
 - (Windows users only) GNU toolchain: run `rustup target add x86_64-pc-windows-gnu`
 
-If you prefer `remotes`, this also works:
+Then:
 
 ```r
-#install.packages("remotes")
-remotes::install_github("y-sunflower/tynding")
+#install.packages("pak")
+pak::pak("y-sunflower/tynding")
 ```
 
 <br>

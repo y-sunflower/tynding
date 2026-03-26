@@ -38,3 +38,5 @@ dev.R
 ^src/rust/target$
 ^src/Makevars$
 ^src/Makevars\.win$
+^vignettes/*
+^hello.typ$

@@ -14,10 +14,3 @@ template:
 
 pkgdown:
   as_is: yes
-
-articles:
-  - title: Guides
-    navbar: Guides
-    contents:
-      - extending-tynding
-      - advanced-example

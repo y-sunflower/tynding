@@ -1,9 +1,9 @@
 Package: tynding
-Title: 'Typst' Bindings for R
-Version: 0.1.1
+Title: 'Typst' Bindings
+Version: 0.1.2
 Authors@R: 
     person("Joseph", "Barbier", , "joseph@ysunflower.com", role = c("aut", "cre"))
-Description: Compile 'Typst' document from R using the 'Typst' 'Rust' library.
+Description: Provides bindings to the 'Typst' typesetting system, enabling users to compile 'Typst' documents directly from R. The package interfaces with the 'Typst' 'Rust' library to render documents, making it possible to integrate 'Typst'-based workflows into R scripts, reports, and reproducible research pipelines. It supports programmatic document generation, compilation, and output handling, facilitating seamless use of 'Typst' alongside tools such as knitr and Quarto.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -13,12 +13,9 @@ BugReports: https://github.com/y-sunflower/tynding/issues
 Depends:
     R (>= 4.2)
 Suggests:
-    testthat (>= 3.0.0),
-    quarto,
-    knitr
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/rextendr/version: 0.4.2
 SystemRequirements: Cargo (Rust's package manager), rustc >= 1.89.0, xz
 Imports: 
     jsonlite
-VignetteBuilder: quarto, knitr

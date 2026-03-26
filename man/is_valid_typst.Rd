@@ -23,13 +23,13 @@ by compiling it. If no error, it assumes the code
 is valid.
 }
 \examples{
-\dontrun{
 typst_code <- c("= Hello World", "This is a Typst document.")
 is_valid_typst(typst_code) # TRUE
 
 typst_code <- c("= Hello World", "#This is a Typst document.")
 is_valid_typst(typst_code) # FALSE
 
+\dontrun{
 typst_code <- c("= Hello World", "#This is a Typst document.")
 is_valid_typst(typst_code, error_on_failure = TRUE) # ERROR
 }
