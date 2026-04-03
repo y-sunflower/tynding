@@ -25,7 +25,9 @@ typst_compile_rust(
 
 \item{output_format}{Optional output format.}
 
-\item{root}{Optional root path. If \code{None}, it uses the current directory (\code{"."}).}
+\item{root}{Optional Typst project root. If \code{None}, it defaults to the parent
+directory of \code{file}. When provided, \code{file} must be contained in the root
+directory's subtree.}
 }
 \value{
 Output path

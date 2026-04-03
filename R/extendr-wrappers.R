@@ -20,7 +20,9 @@ NULL
 #' @param font_path Optional path to font files.
 #' @param pdf_standard Optional PDF standard specification.
 #' @param output_format Optional output format.
-#' @param root Optional root path. If `None`, it uses the current directory (`"."`).
+#' @param root Optional Typst project root. If `None`, it defaults to the parent
+#'   directory of `file`. When provided, `file` must be contained in the root
+#'   directory's subtree.
 #'
 #' @return Output path
 #'
