@@ -1,20 +1,6 @@
-test_that("Complete usage", {
-  markup <- c(
-    '#set page(width: 10cm, height: 4cm)',
-    '#let title = sys.inputs.at("title")',
-    '#let author = sys.inputs.at("author")',
-    '#let persons = json.decode(sys.inputs.at("persons"))',
-    '= #title',
-    '*Author:* #author',
-    '#for person in persons [',
-    '  #strong(person.name) is #text(fill: red, weight: "bold", [#person.age]) years old. \ ',
-    ']'
-  )
-  typst_file <- tempfile(fileext = ".typ")
-  writeLines(markup, typst_file)
-
+test_that("Example 1", {
   pdf_file <- typst_compile(
-    typst_file,
+    "typst/example-1.typ",
     title = "Quarterly report",
     author = "Joseph",
     persons = list(
@@ -23,6 +9,22 @@ test_that("Complete usage", {
       list(name = "Isaac", age = 2)
     )
   )
+  expect_true(file.exists(pdf_file))
+})
 
+test_that("Example 2", {
+  pdf_file <- typst_compile("typst/example-2.typ")
+  expect_true(file.exists(pdf_file))
+})
+
+test_that("Example 3", {
+  old_wd <- setwd(test_path())
+  on.exit(setwd(old_wd), add = TRUE)
+
+  pdf_file <- typst_compile(
+    "typst/subdir/example-3.typ",
+    root = "typst",
+    font_path = "fonts"
+  )
   expect_true(file.exists(pdf_file))
 })

@@ -20,11 +20,14 @@ NULL
 #' @param font_path Optional path to font files.
 #' @param pdf_standard Optional PDF standard specification.
 #' @param output_format Optional output format.
+#' @param root Optional Typst project root. If `None`, it defaults to the parent
+#'   directory of `file`. When provided, `file` must be contained in the root
+#'   directory's subtree.
 #'
 #' @return Output path
 #'
 #' @keywords internal
-typst_compile_rust <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL, output_format = NULL, inputs = NULL) .Call(wrap__typst_compile_rust, file, output, font_path, pdf_standard, output_format, inputs)
+typst_compile_rust <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL, output_format = NULL, root = NULL, inputs = NULL) .Call(wrap__typst_compile_rust, file, output, font_path, pdf_standard, output_format, root, inputs)
 
 
 # nolint end

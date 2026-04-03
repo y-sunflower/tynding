@@ -1,5 +1,4 @@
-test_font_path <- testthat::test_path("fonts")
-cat("Font path for tests:", test_font_path, "\n")
+test_font_path <- test_path("fonts")
 
 test_that("Valid Typst compile usage", {
   if (!dir.exists(test_font_path)) {

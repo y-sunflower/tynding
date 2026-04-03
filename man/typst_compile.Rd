@@ -10,6 +10,7 @@ typst_compile(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   ...
 )
 }
@@ -29,6 +30,9 @@ extension implied by the output format.}
 \code{html}, \code{png}, and \code{svg}. Defaults to \code{NULL}, which means "infer from
 \code{output} when possible, otherwise use \code{pdf}". Multi-page \code{png} and \code{svg}
 outputs are merged into a single image.}
+
+\item{root}{Optional Typst project root. Defaults to the parent directory of
+\code{file}. When provided, \code{file} must be contained in that directory's subtree.}
 
 \item{...}{Named inputs passed to the Typst document via \code{sys.inputs}.
 Each argument must be named. Scalar values are passed as-is; other values
