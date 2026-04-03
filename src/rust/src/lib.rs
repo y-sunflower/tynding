@@ -171,7 +171,7 @@ fn compile_file(
 
     let root_path: &Path = match root {
         Some(root) => Path::new(root),
-        _ => Path::new("."),
+        _ => input_path.parent().unwrap_or_else(|| Path::new(".")),
     };
     let main_file: &str = input_path
         .file_name()

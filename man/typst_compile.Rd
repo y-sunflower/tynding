@@ -10,6 +10,7 @@ typst_compile(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   ...
 )
 }

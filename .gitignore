@@ -3,6 +3,7 @@
 .Rproj.user
 docs
 *.typ
+!tests/testthat/typst/*.typ
 sandbox/
 inst/doc
 *.sh

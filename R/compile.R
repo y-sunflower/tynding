@@ -27,6 +27,7 @@ typst_compile <- function(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   ...
 ) {
   inputs_list <- list(...)
@@ -52,6 +53,7 @@ typst_compile <- function(
     font_path = font_path,
     pdf_standard = pdf_standard,
     output_format = output_format,
+    root = root,
     inputs
   ))
 }
