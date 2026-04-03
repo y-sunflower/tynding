@@ -10,6 +10,7 @@ typst_compile_rust(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   inputs = NULL
 )
 }
@@ -23,6 +24,8 @@ typst_compile_rust(
 \item{pdf_standard}{Optional PDF standard specification.}
 
 \item{output_format}{Optional output format.}
+
+\item{root}{Optional root path. If \code{None}, it uses the current directory (\code{"."}).}
 }
 \value{
 Output path

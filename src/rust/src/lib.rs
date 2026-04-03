@@ -121,6 +121,8 @@ fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Resul
 /// * `output_format` - Optional output format. Supported values are `pdf`, `html`,
 ///   `png`, and `svg`. If `None`, the format is inferred from the output path when
 ///   possible and otherwise defaults to `pdf`.
+/// * `root` - Optional root path. What should be consider the root path. If `None`,
+///   it uses the current directory (`"."`).
 ///
 /// # Returns
 ///
@@ -151,6 +153,7 @@ fn compile_file(
     font_path: Option<&str>,
     pdf_standard: Option<&str>,
     output_format: Option<&str>,
+    root: Option<&str>,
     inputs: Option<&[String]>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
@@ -166,7 +169,10 @@ fn compile_file(
         _ => return Err(format!("Input file must have a .typ extension: {}", file)),
     }
 
-    let root: &Path = input_path.parent().unwrap_or_else(|| Path::new("."));
+    let root_path: &Path = match root {
+        Some(root) => Path::new(root),
+        _ => Path::new("."),
+    };
     let main_file: &str = input_path
         .file_name()
         .and_then(|name| name.to_str())
@@ -202,7 +208,7 @@ fn compile_file(
         PdfStandards::default()
     };
 
-    let engine: TypstEngine = build_engine(root, font_path)?;
+    let engine: TypstEngine = build_engine(root_path, font_path)?;
     let sys_inputs: Dict = build_sys_inputs(inputs)?;
 
     match output_format {
@@ -237,6 +243,7 @@ fn compile_file(
 /// @param font_path Optional path to font files.
 /// @param pdf_standard Optional PDF standard specification.
 /// @param output_format Optional output format.
+/// @param root Optional root path. If `None`, it uses the current directory (`"."`).
 ///
 /// @return Output path
 ///
@@ -248,12 +255,14 @@ fn typst_compile_rust(
     #[default = "NULL"] font_path: Nullable<String>,
     #[default = "NULL"] pdf_standard: Nullable<String>,
     #[default = "NULL"] output_format: Nullable<String>,
+    #[default = "NULL"] root: Nullable<String>,
     #[default = "NULL"] inputs: Nullable<Vec<String>>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
     let pdf_standard: Option<String> = pdf_standard.into_option();
     let output_format: Option<String> = output_format.into_option();
+    let root: Option<String> = root.into_option();
     let inputs: Option<Vec<String>> = inputs.into_option();
 
     match compile_file(
@@ -262,6 +271,7 @@ fn typst_compile_rust(
         font_path.as_deref(),
         pdf_standard.as_deref(),
         output_format.as_deref(),
+        root.as_deref(),
         inputs.as_deref(),
     ) {
         Ok(output_path) => output_path,
@@ -364,6 +374,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
@@ -388,6 +399,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -459,6 +471,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with custom fonts should succeed");
 
@@ -486,6 +499,7 @@ mod tests {
             Some("1.7"),
             None,
             None,
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -503,6 +517,7 @@ mod tests {
 
         let err: String = compile_file(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -528,6 +543,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("non-.typ input should return an error");
 
@@ -544,6 +560,7 @@ mod tests {
         let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(""),
+            None,
             None,
             None,
             None,
@@ -568,6 +585,7 @@ mod tests {
             Some(""),
             None,
             None,
+            None,
         )
         .expect_err("empty PDF standard should return an error");
 
@@ -588,6 +606,7 @@ mod tests {
             Some("bogus-standard"),
             None,
             None,
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -606,6 +625,7 @@ mod tests {
             None,
             None,
             Some("ua-2"),
+            None,
             None,
             None,
         )
@@ -629,6 +649,7 @@ mod tests {
             None,
             Some("html"),
             None,
+            None,
         )
         .expect("HTML compilation should succeed");
 
@@ -649,6 +670,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_html.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -677,6 +699,7 @@ mod tests {
             None,
             Some("png"),
             None,
+            None,
         )
         .expect("PNG compilation should succeed");
 
@@ -701,6 +724,7 @@ mod tests {
             None,
             Some("svg"),
             None,
+            None,
         )
         .expect("SVG compilation should succeed");
 
@@ -723,6 +747,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
         )
         .expect_err("empty output format should return an error");
@@ -748,6 +773,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unknown output extension should return an error");
 
@@ -767,6 +793,7 @@ mod tests {
             None,
             Some("1.7"),
             Some("html"),
+            None,
             None,
         )
         .expect_err("pdf_standard should be rejected for non-PDF output");
