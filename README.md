@@ -9,6 +9,7 @@
   - output format (pdf, png, svg, html)
   - font path to look for font files
   - pdf standard (for accessibility)
+  - root path for more complex repos
   - _any other kind of inputs_, for advanced templating
 
 <br>
@@ -20,6 +21,9 @@ From r-universe (recommended):
 ```r
 install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
+
+> [!NOTE]
+> `tynding` uses Typst 0.14.2
 
 Or development version from GitHub (the package builds Rust code during installation, so you need):
 
