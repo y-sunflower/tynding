@@ -24,10 +24,9 @@ test_that("Example 1: Pass additional named arguments to Typst, with JSON encodi
 })
 
 test_that("Example 2: A simple Typst document", {
-  skip_on_cran()
   input_file <- test_path("typst", "example-2.typ")
 
-  pdf_file <- typst_compile(input_file, output = output_file)
+  pdf_file <- typst_compile(input_file)
   expect_true(file.exists(pdf_file))
   unlink(pdf_file)
 })
