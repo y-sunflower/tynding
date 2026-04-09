@@ -4,11 +4,12 @@
 
 `tynding` is an R package that compiles Typst documents from R through a Rust backend.
 
-- it exposes a small API for writing, evaluating and compiling `.typ` files
+- it exposes a small API for <u>writing</u>, _evaluating_ and **compiling** Typst files
 - it lets you specify:
   - output format (pdf, png, svg, html)
   - font path to look for font files
   - pdf standard (for accessibility)
+  - root path for more complex repos
   - _any other kind of inputs_, for advanced templating
 
 <br>
@@ -20,6 +21,9 @@ From r-universe (recommended):
 ```r
 install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
+
+> [!NOTE]
+> `tynding` uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.
 
 Or development version from GitHub (the package builds Rust code during installation, so you need):
 
@@ -59,7 +63,7 @@ pdf_file
 
 ## Features
 
-- fonts: pass `font_path` to load `.ttf`, `.otf`, or `.ttc` files from a directory before compiling.
+- fonts: pass `font_path` to load font files from a directory before compiling.
 
 ```r
 library(tynding)
@@ -67,7 +71,7 @@ library(tynding)
 markup <- c(
   '#set document(title: "custom font example")',
   '#set text(font: "Ultra")',
-  "= hello world"
+  '= hello world'
 )
 
 typ_file <- typst_write(markup)
@@ -94,15 +98,39 @@ For `ua-1`, your document needs a title. Unsupported or invalid standards raise 
 library(tynding)
 
 markup <- c(
-  '#set document(title: "html example")',
-  "= hello world"
+  '#set document(title: "hello from tynding")',
+  "= hello world",
+  "this document was compiled from R."
 )
 
 typ_file <- typst_write(markup)
-html_file <- typst_compile(typ_file, output_format = "html")
+png_file <- typst_compile(typ_file, root = "png")
 ```
 
 Multi-page `png` and `svg` exports are merged into a single vertically stacked image so the function can keep returning one output path.
+
+- root path: by default, the root path corresponds to the parent directory of `file` (detected automatically), but you can use the `root` argument to specify a different path, which is often useful in more complex projects where, for example, font files are located in a parent directory.
+
+```r
+library(tynding)
+
+typst_compile(
+  "reports/typst/document.typ",
+  root = "reports",
+  font_path = "reports/fonts"
+)
+```
+
+This will let you organize your project as follow, which isn't possible by default:
+
+```
+root/
+├── typst/
+│   └── document.typ
+└── fonts/
+    ├── MyFont.tff
+    └── MyFont-Bold.tff
+```
 
 <br>
 
@@ -148,7 +176,7 @@ More information about inputs:
 
 - Named inputs passed to the Typst document via `sys.inputs`
 - Each argument must be named
-- Scalar values are passed as-is; other values are **JSON-encoded**
+- Scalar values are passed as-is; other values are **JSON-encoded** (using `jsonlite::toJSON()`)
 
 This means that we can, for instance, send a dataframe from R to create a Typst table.
 
@@ -197,4 +225,4 @@ Both have their pros and cons, but `tynding` is designed to be more portable in 
 
 ## Coding with AI?
 
-If you're coding with AI, this README is pretty much all they need to know! Just copy everything above this section and send it to your favorite AI/LLM.
+If you're coding with AI, this page is pretty much all they need to know! Just copy everything above this section and send it to your favorite AI/LLM.

@@ -14,6 +14,8 @@
 #' `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
 #' `output` when possible, otherwise use `pdf`". Multi-page `png` and `svg`
 #' outputs are merged into a single image.
+#' @param root Optional Typst project root. Defaults to the parent directory of
+#' `file`. When provided, `file` must be contained in that directory's subtree.
 #' @param ... Named inputs passed to the Typst document via `sys.inputs`.
 #' Each argument must be named. Scalar values are passed as-is; other values
 #' are JSON-encoded.
@@ -27,6 +29,7 @@ typst_compile <- function(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   ...
 ) {
   inputs_list <- list(...)
@@ -52,6 +55,7 @@ typst_compile <- function(
     font_path = font_path,
     pdf_standard = pdf_standard,
     output_format = output_format,
+    root = root,
     inputs
   ))
 }

@@ -121,6 +121,9 @@ fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Resul
 /// * `output_format` - Optional output format. Supported values are `pdf`, `html`,
 ///   `png`, and `svg`. If `None`, the format is inferred from the output path when
 ///   possible and otherwise defaults to `pdf`.
+/// * `root` - Optional Typst project root. If `None`, it defaults to the parent
+///   directory of the main Typst file. When provided, the main file must be
+///   contained in the root directory's subtree.
 ///
 /// # Returns
 ///
@@ -140,17 +143,18 @@ fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Resul
 ///
 /// # Behavior
 ///
-/// The Typst project root is set to the parent directory of the input file.
-/// The file name itself is passed to the Typst compiler, allowing relative
-/// imports within the same project directory. Multi-page PNG and SVG exports are
-/// merged into a single vertically stacked image so the function can keep returning
-/// a single output path.
+/// By default, the Typst project root is set to the parent directory of the
+/// input file. When `root` is provided, Typst resolves absolute paths from that
+/// directory and the main file must still live within its subtree. Multi-page
+/// PNG and SVG exports are merged into a single vertically stacked image so the
+/// function can keep returning a single output path.
 fn compile_file(
     file: &str,
     output: Option<&str>,
     font_path: Option<&str>,
     pdf_standard: Option<&str>,
     output_format: Option<&str>,
+    root: Option<&str>,
     inputs: Option<&[String]>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
@@ -166,11 +170,54 @@ fn compile_file(
         _ => return Err(format!("Input file must have a .typ extension: {}", file)),
     }
 
-    let root: &Path = input_path.parent().unwrap_or_else(|| Path::new("."));
-    let main_file: &str = input_path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| format!("Invalid UTF-8 file name: {}", file))?;
+    let canonical_input_path: PathBuf = std::fs::canonicalize(input_path).map_err(|err| {
+        format!(
+            "Could not resolve input file {}: {err}",
+            input_path.display()
+        )
+    })?;
+
+    let root_path: PathBuf = match root {
+        Some(root) if root.trim().is_empty() => {
+            return Err("`root` must not be an empty path".to_owned());
+        }
+        Some(root) => {
+            let root_path: &Path = Path::new(root);
+            if !root_path.is_dir() {
+                return Err(format!(
+                    "Root directory does not exist: {}",
+                    root_path.display()
+                ));
+            }
+            std::fs::canonicalize(root_path).map_err(|err| {
+                format!(
+                    "Could not resolve root directory {}: {err}",
+                    root_path.display()
+                )
+            })?
+        }
+        None => canonical_input_path
+            .parent()
+            .ok_or_else(|| {
+                format!(
+                    "Could not determine the parent directory of input file: {}",
+                    input_path.display()
+                )
+            })?
+            .to_path_buf(),
+    };
+
+    let main_file: String = canonical_input_path
+        .strip_prefix(&root_path)
+        .map_err(|_| {
+            format!(
+                "Input file must be contained in the root directory: {} (root: {})",
+                input_path.display(),
+                root_path.display()
+            )
+        })?
+        .to_string_lossy()
+        .into_owned();
 
     let explicit_output_path: Option<PathBuf> = match output {
         Some(path) if path.trim().is_empty() => {
@@ -202,24 +249,24 @@ fn compile_file(
         PdfStandards::default()
     };
 
-    let engine: TypstEngine = build_engine(root, font_path)?;
+    let engine: TypstEngine = build_engine(&root_path, font_path)?;
     let sys_inputs: Dict = build_sys_inputs(inputs)?;
 
     match output_format {
         OutputFormat::Pdf => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
+            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
             write_pdf(&doc, &output_path, standards)?;
         }
         OutputFormat::Html => {
-            let doc: HtmlDocument = compile_html_document(&engine, main_file, &sys_inputs)?;
+            let doc: HtmlDocument = compile_html_document(&engine, &main_file, &sys_inputs)?;
             write_html(&doc, &output_path)?;
         }
         OutputFormat::Png => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
+            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
             write_png(&doc, &output_path)?;
         }
         OutputFormat::Svg => {
-            let doc: PagedDocument = compile_paged_document(&engine, main_file, &sys_inputs)?;
+            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
             write_svg(&doc, &output_path)?;
         }
     }
@@ -237,6 +284,9 @@ fn compile_file(
 /// @param font_path Optional path to font files.
 /// @param pdf_standard Optional PDF standard specification.
 /// @param output_format Optional output format.
+/// @param root Optional Typst project root. If `None`, it defaults to the parent
+///   directory of `file`. When provided, `file` must be contained in the root
+///   directory's subtree.
 ///
 /// @return Output path
 ///
@@ -248,12 +298,14 @@ fn typst_compile_rust(
     #[default = "NULL"] font_path: Nullable<String>,
     #[default = "NULL"] pdf_standard: Nullable<String>,
     #[default = "NULL"] output_format: Nullable<String>,
+    #[default = "NULL"] root: Nullable<String>,
     #[default = "NULL"] inputs: Nullable<Vec<String>>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
     let pdf_standard: Option<String> = pdf_standard.into_option();
     let output_format: Option<String> = output_format.into_option();
+    let root: Option<String> = root.into_option();
     let inputs: Option<Vec<String>> = inputs.into_option();
 
     match compile_file(
@@ -262,6 +314,7 @@ fn typst_compile_rust(
         font_path.as_deref(),
         pdf_standard.as_deref(),
         output_format.as_deref(),
+        root.as_deref(),
         inputs.as_deref(),
     ) {
         Ok(output_path) => output_path,
@@ -364,6 +417,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
@@ -388,6 +442,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -459,8 +514,37 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with custom fonts should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_pdf);
+        assert!(expected_pdf.exists(), "expected PDF output to exist");
+        assert_is_pdf(&expected_pdf);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_succeeds_for_nested_main_file_with_explicit_root() {
+        let dir: PathBuf = unique_temp_dir();
+        let root_dir: PathBuf = dir.join("project");
+        let nested_dir: PathBuf = root_dir.join("subdir");
+        let typ_path: PathBuf = nested_dir.join("nested.typ");
+        let expected_pdf: PathBuf = nested_dir.join("nested.pdf");
+        fs::create_dir_all(&nested_dir).expect("could not create nested project directory");
+        write_typ_file(&typ_path, "= Hello from nested root test");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            None,
+            Some(root_dir.to_str().expect("path should be valid UTF-8")),
+            None,
+        )
+        .expect("compilation with an explicit project root should succeed");
 
         assert_eq!(PathBuf::from(output), expected_pdf);
         assert!(expected_pdf.exists(), "expected PDF output to exist");
@@ -486,6 +570,7 @@ mod tests {
             Some("1.7"),
             None,
             None,
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -508,10 +593,36 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("missing file should return an error");
 
         assert!(err.contains("Input file does not exist"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_when_input_is_outside_explicit_root() {
+        let dir: PathBuf = unique_temp_dir();
+        let root_dir: PathBuf = dir.join("project");
+        let outside_dir: PathBuf = dir.join("outside");
+        let typ_path: PathBuf = outside_dir.join("source.typ");
+        fs::create_dir_all(&root_dir).expect("could not create project root directory");
+        fs::create_dir_all(&outside_dir).expect("could not create outside directory");
+        write_typ_file(&typ_path, "= Outside root");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            None,
+            Some(root_dir.to_str().expect("path should be valid UTF-8")),
+            None,
+        )
+        .expect_err("input outside the explicit root should return an error");
+
+        assert!(err.contains("Input file must be contained in the root directory"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 
@@ -523,6 +634,7 @@ mod tests {
 
         let err: String = compile_file(
             txt_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -548,6 +660,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("empty output path should return an error");
 
@@ -566,6 +679,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
             None,
         )
@@ -588,6 +702,7 @@ mod tests {
             Some("bogus-standard"),
             None,
             None,
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -606,6 +721,7 @@ mod tests {
             None,
             None,
             Some("ua-2"),
+            None,
             None,
             None,
         )
@@ -629,6 +745,7 @@ mod tests {
             None,
             Some("html"),
             None,
+            None,
         )
         .expect("HTML compilation should succeed");
 
@@ -649,6 +766,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_html.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -677,6 +795,7 @@ mod tests {
             None,
             Some("png"),
             None,
+            None,
         )
         .expect("PNG compilation should succeed");
 
@@ -701,6 +820,7 @@ mod tests {
             None,
             Some("svg"),
             None,
+            None,
         )
         .expect("SVG compilation should succeed");
 
@@ -723,6 +843,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
         )
         .expect_err("empty output format should return an error");
@@ -748,6 +869,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unknown output extension should return an error");
 
@@ -767,6 +889,7 @@ mod tests {
             None,
             Some("1.7"),
             Some("html"),
+            None,
             None,
         )
         .expect_err("pdf_standard should be rejected for non-PDF output");

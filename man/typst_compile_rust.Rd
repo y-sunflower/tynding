@@ -10,6 +10,7 @@ typst_compile_rust(
   font_path = NULL,
   pdf_standard = NULL,
   output_format = NULL,
+  root = NULL,
   inputs = NULL
 )
 }
@@ -23,6 +24,10 @@ typst_compile_rust(
 \item{pdf_standard}{Optional PDF standard specification.}
 
 \item{output_format}{Optional output format.}
+
+\item{root}{Optional Typst project root. If \code{None}, it defaults to the parent
+directory of \code{file}. When provided, \code{file} must be contained in the root
+directory's subtree.}
 }
 \value{
 Output path
