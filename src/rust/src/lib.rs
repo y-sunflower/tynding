@@ -15,23 +15,18 @@ use typst_as_lib::TypstEngine;
 use typst_html::HtmlDocument;
 use typst_pdf::{PdfOptions, PdfStandards};
 
-fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
-    match font_path {
-        Some(path) => {
-            let fonts: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
-            Ok(TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build())
-        }
-        None => {
-            let fonts = typst_assets::fonts();
-            Ok(TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build())
-        }
+fn build_engine(root: &Path, font_path: Option<&str>) -> Result<TypstEngine> {
+    let mut fonts: Vec<Vec<u8>> = typst_assets::fonts().map(|f| f.to_vec()).collect();
+
+    if let Some(path) = font_path {
+        let custom: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
+        fonts.extend(custom);
     }
+
+    Ok(TypstEngine::builder()
+        .with_file_system_resolver(root)
+        .fonts(fonts)
+        .build())
 }
 
 fn compile_paged_document(
@@ -236,10 +231,6 @@ fn compile_file(
         _ => return Err(format!("Input file must have a .typ extension: {}", file)),
     }
 
-    if output_format != Some("png") && ppi.is_some() {
-        return Err("ppi shouldn't be specified when output_format is not png.".to_string());
-    }
-
     let canonical_input_path: PathBuf = std::fs::canonicalize(input_path).map_err(|err| {
         format!(
             "Could not resolve input file {}: {err}",
@@ -302,6 +293,10 @@ fn compile_file(
     let output_path: PathBuf = explicit_output_path
         .unwrap_or_else(|| input_path.with_extension(output_format.extension()));
 
+    if output_format != OutputFormat::Png && ppi.is_some() {
+        return Err("ppi shouldn't be specified when output_format is not png.".to_string());
+    }
+
     let standards: PdfStandards = if output_format == OutputFormat::Pdf {
         match pdf_standard {
             Some(value) if value.trim().is_empty() => {
@@ -335,7 +330,7 @@ fn compile_file(
             let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
             match ppi {
                 Some(ppi) => write_png(&doc, &output_path, ppi)?,
-                None => write_png(&doc, &output_path, &(144.0 / 72.0))?,
+                None => write_png(&doc, &output_path, &(144.0))?,
             }
         }
         OutputFormat::Svg => {
