@@ -12,8 +12,9 @@
 #' `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF output.
 #' @param output_format Optional output format. Supported values are `pdf`,
 #' `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
-#' `output` when possible, otherwise use `pdf`". Multi-page `png` and `svg`
-#' outputs are merged into a single image.
+#' `output` when possible, otherwise use `pdf`". For multi-page `png` and `svg`
+#' outputs, `output` must be a template path containing at least one of
+#' `{p}`, `{0p}`, or `{t}`.
 #' @param root Optional Typst project root. Defaults to the parent directory of
 #' `file`. When provided, `file` must be contained in that directory's subtree.
 #' @param ... Named inputs passed to the Typst document via `sys.inputs`.
