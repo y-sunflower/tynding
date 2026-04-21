@@ -10,29 +10,23 @@ use output::{infer_output_format, OutputFormat};
 use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
 use typst::foundations::Dict;
-use typst::layout::{Abs, PagedDocument};
-use typst::visualize::Color;
+use typst::layout::PagedDocument;
 use typst_as_lib::TypstEngine;
 use typst_html::HtmlDocument;
 use typst_pdf::{PdfOptions, PdfStandards};
 
 fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
-    match font_path {
-        Some(path) => {
-            let fonts: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
-            Ok(TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build())
-        }
-        None => {
-            let fonts = typst_assets::fonts();
-            Ok(TypstEngine::builder()
-                .with_file_system_resolver(root)
-                .fonts(fonts)
-                .build())
-        }
+    let mut fonts: Vec<Vec<u8>> = typst_assets::fonts().map(|f| f.to_vec()).collect();
+
+    if let Some(path) = font_path {
+        let custom: Vec<Vec<u8>> = load_fonts_from_dir(path)?;
+        fonts.extend(custom);
     }
+
+    Ok(TypstEngine::builder()
+        .with_file_system_resolver(root)
+        .fonts(fonts)
+        .build())
 }
 
 fn compile_paged_document(
@@ -82,24 +76,90 @@ fn write_html(document: &HtmlDocument, output_path: &Path) -> std::result::Resul
         .map_err(|err| format!("Could not write HTML to {}: {err}", output_path.display()))
 }
 
-fn write_png(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
-    // Keep the public API returning one output path by vertically merging pages.
-    let pixmap =
-        typst_render::render_merged(document, 144.0 / 72.0, Abs::pt(1.0), Some(Color::WHITE));
-    let png: Vec<u8> = pixmap
-        .encode_png()
-        .map_err(|err| format!("PNG export failed: {err}"))?;
+fn render_page_template_path(template: &Path, page: usize, total_pages: usize) -> PathBuf {
+    let width: usize = total_pages.to_string().len();
+    let rendered: String = template
+        .to_string_lossy()
+        .replace("{0p}", &format!("{page:0width$}"))
+        .replace("{p}", &page.to_string())
+        .replace("{t}", &total_pages.to_string());
+    PathBuf::from(rendered)
+}
 
-    std::fs::write(output_path, png)
-        .map_err(|err| format!("Could not write PNG to {}: {err}", output_path.display()))
+fn validate_multipage_template(
+    output_path: &Path,
+    total_pages: usize,
+    format: OutputFormat,
+) -> std::result::Result<(), String> {
+    if total_pages <= 1 {
+        return Ok(());
+    }
+
+    let template: String = output_path.to_string_lossy().into_owned();
+    if template.contains("{p}") || template.contains("{0p}") || template.contains("{t}") {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Multi-page {} output requires an `output` path template containing at least one of {{p}}, {{0p}}, or {{t}}. See {}.",
+        format.extension(),
+        format!("https://typst.app/docs/reference/{}/", format.extension())
+    ))
+}
+
+fn write_png(
+    document: &PagedDocument,
+    output_path: &Path,
+    ppi: &f32,
+) -> std::result::Result<(), String> {
+    let total_pages: usize = document.pages.len();
+    validate_multipage_template(output_path, total_pages, OutputFormat::Png)?;
+
+    for (index, page) in document.pages.iter().enumerate() {
+        let page_number: usize = index + 1;
+        let page_output_path: PathBuf = if total_pages > 1 {
+            render_page_template_path(output_path, page_number, total_pages)
+        } else {
+            output_path.to_path_buf()
+        };
+        let pixmap = typst_render::render(page, ppi / 72.0);
+        let png: Vec<u8> = pixmap
+            .encode_png()
+            .map_err(|err| format!("PNG export failed: {err}"))?;
+
+        std::fs::write(&page_output_path, png).map_err(|err| {
+            format!(
+                "Could not write PNG to {}: {err}",
+                page_output_path.display()
+            )
+        })?;
+    }
+
+    Ok(())
 }
 
 fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
-    // Keep the public API returning one output path by vertically merging pages.
-    let svg: String = typst_svg::svg_merged(document, Abs::pt(1.0));
+    let total_pages: usize = document.pages.len();
+    validate_multipage_template(output_path, total_pages, OutputFormat::Svg)?;
 
-    std::fs::write(output_path, svg.as_bytes())
-        .map_err(|err| format!("Could not write SVG to {}: {err}", output_path.display()))
+    for (index, page) in document.pages.iter().enumerate() {
+        let page_number: usize = index + 1;
+        let page_output_path: PathBuf = if total_pages > 1 {
+            render_page_template_path(output_path, page_number, total_pages)
+        } else {
+            output_path.to_path_buf()
+        };
+        let svg: String = typst_svg::svg(page);
+
+        std::fs::write(&page_output_path, svg.as_bytes()).map_err(|err| {
+            format!(
+                "Could not write SVG to {}: {err}",
+                page_output_path.display()
+            )
+        })?;
+    }
+
+    Ok(())
 }
 
 /// Compiles a `.typ` Typst file into a supported output format.
@@ -145,9 +205,9 @@ fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Resul
 ///
 /// By default, the Typst project root is set to the parent directory of the
 /// input file. When `root` is provided, Typst resolves absolute paths from that
-/// directory and the main file must still live within its subtree. Multi-page
-/// PNG and SVG exports are merged into a single vertically stacked image so the
-/// function can keep returning a single output path.
+/// directory and the main file must still live within its subtree. For multi-page
+/// PNG and SVG exports, `output` must be a template path containing at least one
+/// of `{p}`, `{0p}`, or `{t}` so each page can be written to its own file.
 fn compile_file(
     file: &str,
     output: Option<&str>,
@@ -156,6 +216,7 @@ fn compile_file(
     output_format: Option<&str>,
     root: Option<&str>,
     inputs: Option<&[String]>,
+    ppi: Option<&f32>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -232,6 +293,10 @@ fn compile_file(
     let output_path: PathBuf = explicit_output_path
         .unwrap_or_else(|| input_path.with_extension(output_format.extension()));
 
+    if output_format != OutputFormat::Png && ppi.is_some() {
+        return Err("ppi shouldn't be specified when output_format is not png.".to_string());
+    }
+
     let standards: PdfStandards = if output_format == OutputFormat::Pdf {
         match pdf_standard {
             Some(value) if value.trim().is_empty() => {
@@ -263,7 +328,10 @@ fn compile_file(
         }
         OutputFormat::Png => {
             let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
-            write_png(&doc, &output_path)?;
+            match ppi {
+                Some(ppi) => write_png(&doc, &output_path, ppi)?,
+                None => write_png(&doc, &output_path, &(144.0))?,
+            }
         }
         OutputFormat::Svg => {
             let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
@@ -287,6 +355,9 @@ fn compile_file(
 /// @param root Optional Typst project root. If `None`, it defaults to the parent
 ///   directory of `file`. When provided, `file` must be contained in the root
 ///   directory's subtree.
+/// @param inputs Optional additional sys inputs parameters.
+/// @param ppi Optional pixels per inch value when exporting to png. If NULL,
+///   default to 144.0.
 ///
 /// @return Output path
 ///
@@ -300,6 +371,7 @@ fn typst_compile_rust(
     #[default = "NULL"] output_format: Nullable<String>,
     #[default = "NULL"] root: Nullable<String>,
     #[default = "NULL"] inputs: Nullable<Vec<String>>,
+    #[default = "NULL"] ppi: Nullable<f32>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
@@ -307,6 +379,7 @@ fn typst_compile_rust(
     let output_format: Option<String> = output_format.into_option();
     let root: Option<String> = root.into_option();
     let inputs: Option<Vec<String>> = inputs.into_option();
+    let ppi: Option<f32> = ppi.into_option();
 
     match compile_file(
         file,
@@ -316,6 +389,7 @@ fn typst_compile_rust(
         output_format.as_deref(),
         root.as_deref(),
         inputs.as_deref(),
+        ppi.as_ref(),
     ) {
         Ok(output_path) => output_path,
         Err(message) => throw_r_error(message),
@@ -332,7 +406,7 @@ extendr_module! {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_file, load_fonts_from_dir};
+    use super::{compile_file, load_fonts_from_dir, render_page_template_path};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -418,6 +492,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
@@ -442,6 +517,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -515,6 +591,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with custom fonts should succeed");
 
@@ -542,6 +619,7 @@ mod tests {
             None,
             None,
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
         )
         .expect("compilation with an explicit project root should succeed");
@@ -571,6 +649,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -588,6 +667,7 @@ mod tests {
 
         let err: String = compile_file(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -619,6 +699,7 @@ mod tests {
             None,
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
             None,
+            None,
         )
         .expect_err("input outside the explicit root should return an error");
 
@@ -634,6 +715,7 @@ mod tests {
 
         let err: String = compile_file(
             txt_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -661,6 +743,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("empty output path should return an error");
 
@@ -679,6 +762,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
             None,
             None,
@@ -703,6 +787,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -721,6 +806,7 @@ mod tests {
             None,
             None,
             Some("ua-2"),
+            None,
             None,
             None,
             None,
@@ -744,6 +830,7 @@ mod tests {
             None,
             None,
             Some("html"),
+            None,
             None,
             None,
         )
@@ -771,6 +858,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should infer HTML from the output extension");
 
@@ -782,13 +870,117 @@ mod tests {
     }
 
     #[test]
-    fn compile_writes_merged_png_output() {
+    fn compile_writes_multipage_png_outputs_when_template_is_provided() {
         let dir: PathBuf = unique_temp_dir();
-        let typ_path: PathBuf = dir.join("merged-png.typ");
-        let expected_png: PathBuf = dir.join("merged-png.png");
+        let typ_path: PathBuf = dir.join("multipage-png.typ");
+        let output_template: PathBuf = dir.join("multipage-png-{p}.png");
+        let expected_png_1: PathBuf = dir.join("multipage-png-1.png");
+        let expected_png_2: PathBuf = dir.join("multipage-png-2.png");
         write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
 
         let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            Some(
+                output_template
+                    .to_str()
+                    .expect("path should be valid UTF-8"),
+            ),
+            None,
+            None,
+            Some("png"),
+            None,
+            None,
+            Some(&200.0),
+        )
+        .expect("PNG compilation should succeed");
+
+        assert_eq!(PathBuf::from(output), output_template);
+        assert!(
+            expected_png_1.exists(),
+            "expected first PNG output to exist"
+        );
+        assert!(
+            expected_png_2.exists(),
+            "expected second PNG output to exist"
+        );
+        assert_is_png(&expected_png_1);
+        assert_is_png(&expected_png_2);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn error_message_with_unexpected_ppi() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("example.typ");
+        write_typ_file(&typ_path, "= hello");
+
+        let result = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(&200.0),
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            "ppi shouldn't be specified when output_format is not png."
+        );
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_writes_multipage_svg_outputs_when_template_is_provided() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("multipage-svg.typ");
+        let output_template: PathBuf = dir.join("multipage-svg-{p}.svg");
+        let expected_svg_1: PathBuf = dir.join("multipage-svg-1.svg");
+        let expected_svg_2: PathBuf = dir.join("multipage-svg-2.svg");
+        write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
+
+        let output: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            Some(
+                output_template
+                    .to_str()
+                    .expect("path should be valid UTF-8"),
+            ),
+            None,
+            None,
+            Some("svg"),
+            None,
+            None,
+            None,
+        )
+        .expect("SVG compilation should succeed");
+
+        assert_eq!(PathBuf::from(output), output_template);
+        assert!(
+            expected_svg_1.exists(),
+            "expected first SVG output to exist"
+        );
+        assert!(
+            expected_svg_2.exists(),
+            "expected second SVG output to exist"
+        );
+        assert_is_svg(&expected_svg_1);
+        assert_is_svg(&expected_svg_2);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_multipage_png_output_without_template() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("multipage-png.typ");
+        write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
+
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -796,24 +988,21 @@ mod tests {
             Some("png"),
             None,
             None,
+            None,
         )
-        .expect("PNG compilation should succeed");
+        .expect_err("multi-page PNG without output template should return an error");
 
-        assert_eq!(PathBuf::from(output), expected_png);
-        assert!(expected_png.exists(), "expected PNG output to exist");
-        assert_is_png(&expected_png);
-
+        assert!(err.contains("Multi-page png output requires an `output` path template"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 
     #[test]
-    fn compile_writes_merged_svg_output() {
+    fn compile_fails_for_multipage_svg_output_without_template() {
         let dir: PathBuf = unique_temp_dir();
-        let typ_path: PathBuf = dir.join("merged-svg.typ");
-        let expected_svg: PathBuf = dir.join("merged-svg.svg");
+        let typ_path: PathBuf = dir.join("multipage-svg.typ");
         write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
 
-        let output: String = compile_file(
+        let err: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -821,14 +1010,25 @@ mod tests {
             Some("svg"),
             None,
             None,
+            None,
         )
-        .expect("SVG compilation should succeed");
+        .expect_err("multi-page SVG without output template should return an error");
 
-        assert_eq!(PathBuf::from(output), expected_svg);
-        assert!(expected_svg.exists(), "expected SVG output to exist");
-        assert_is_svg(&expected_svg);
-
+        assert!(err.contains("Multi-page svg output requires an `output` path template"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn render_page_template_path_supports_zero_padding_and_total_pages() {
+        let template: PathBuf = PathBuf::from("/tmp/out-{0p}-of-{t}.png");
+
+        let rendered_page_3: PathBuf = render_page_template_path(&template, 3, 12);
+
+        assert_eq!(
+            rendered_page_3,
+            PathBuf::from("/tmp/out-03-of-12.png"),
+            "template should replace {{0p}} and {{t}}"
+        );
     }
 
     #[test]
@@ -843,6 +1043,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
             None,
         )
@@ -870,6 +1071,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unknown output extension should return an error");
 
@@ -889,6 +1091,7 @@ mod tests {
             None,
             Some("1.7"),
             Some("html"),
+            None,
             None,
             None,
         )

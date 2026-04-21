@@ -23,11 +23,14 @@ NULL
 #' @param root Optional Typst project root. If `None`, it defaults to the parent
 #'   directory of `file`. When provided, `file` must be contained in the root
 #'   directory's subtree.
+#' @param inputs Optional additional sys inputs parameters.
+#' @param ppi Optional pixels per inch value when exporting to png. If NULL,
+#'   default to 144.0.
 #'
 #' @return Output path
 #'
 #' @keywords internal
-typst_compile_rust <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL, output_format = NULL, root = NULL, inputs = NULL) .Call(wrap__typst_compile_rust, file, output, font_path, pdf_standard, output_format, root, inputs)
+typst_compile_rust <- function(file, output = NULL, font_path = NULL, pdf_standard = NULL, output_format = NULL, root = NULL, inputs = NULL, ppi = NULL) .Call(wrap__typst_compile_rust, file, output, font_path, pdf_standard, output_format, root, inputs, ppi)
 
 
 # nolint end

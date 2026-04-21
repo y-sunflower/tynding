@@ -11,7 +11,8 @@ typst_compile_rust(
   pdf_standard = NULL,
   output_format = NULL,
   root = NULL,
-  inputs = NULL
+  inputs = NULL,
+  ppi = NULL
 )
 }
 \arguments{
@@ -28,6 +29,11 @@ typst_compile_rust(
 \item{root}{Optional Typst project root. If \code{None}, it defaults to the parent
 directory of \code{file}. When provided, \code{file} must be contained in the root
 directory's subtree.}
+
+\item{inputs}{Optional additional sys inputs parameters.}
+
+\item{ppi}{Optional pixels per inch value when exporting to png. If NULL,
+default to 144.0.}
 }
 \value{
 Output path

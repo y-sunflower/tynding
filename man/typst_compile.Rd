@@ -11,6 +11,7 @@ typst_compile(
   pdf_standard = NULL,
   output_format = NULL,
   root = NULL,
+  ppi = NULL,
   ...
 )
 }
@@ -28,11 +29,15 @@ extension implied by the output format.}
 
 \item{output_format}{Optional output format. Supported values are \code{pdf},
 \code{html}, \code{png}, and \code{svg}. Defaults to \code{NULL}, which means "infer from
-\code{output} when possible, otherwise use \code{pdf}". Multi-page \code{png} and \code{svg}
-outputs are merged into a single image.}
+\code{output} when possible, otherwise use \code{pdf}". For multi-page \code{png} and \code{svg}
+outputs, \code{output} must be a template path containing at least one of
+\code{{p}}, \verb{\{0p\}}, or \code{{t}}.}
 
 \item{root}{Optional Typst project root. Defaults to the parent directory of
 \code{file}. When provided, \code{file} must be contained in that directory's subtree.}
+
+\item{ppi}{Optional pixels per inch value when exporting to png. If NULL,
+default to 144.0.}
 
 \item{...}{Named inputs passed to the Typst document via \code{sys.inputs}.
 Each argument must be named. Scalar values are passed as-is; other values
