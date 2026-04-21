@@ -28,7 +28,11 @@ test_that("Valid Typst compile usage", {
   generated_files <- c(generated_files, svg_file)
   expect_true(file.exists(svg_file))
 
-  multipage_typ_file <- typst_write(c("= First page", "#pagebreak()", "= Second page"))
+  multipage_typ_file <- typst_write(c(
+    "= First page",
+    "#pagebreak()",
+    "= Second page"
+  ))
   generated_files <- c(generated_files, multipage_typ_file)
 
   expect_error(
@@ -42,7 +46,10 @@ test_that("Valid Typst compile usage", {
   )
 
   png_template <- file.path(tempdir(), "multi-{p}.png")
-  generated_files <- c(generated_files, file.path(tempdir(), c("multi-1.png", "multi-2.png")))
+  generated_files <- c(
+    generated_files,
+    file.path(tempdir(), c("multi-1.png", "multi-2.png"))
+  )
   png_template_output <- typst_compile(
     multipage_typ_file,
     output = png_template,
@@ -53,7 +60,10 @@ test_that("Valid Typst compile usage", {
   expect_true(file.exists(file.path(tempdir(), "multi-2.png")))
 
   svg_template <- file.path(tempdir(), "multi-{0p}-of-{t}.svg")
-  generated_files <- c(generated_files, file.path(tempdir(), c("multi-1-of-2.svg", "multi-2-of-2.svg")))
+  generated_files <- c(
+    generated_files,
+    file.path(tempdir(), c("multi-1-of-2.svg", "multi-2-of-2.svg"))
+  )
   svg_template_output <- typst_compile(
     multipage_typ_file,
     output = svg_template,
