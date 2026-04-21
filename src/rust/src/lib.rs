@@ -236,6 +236,10 @@ fn compile_file(
         _ => return Err(format!("Input file must have a .typ extension: {}", file)),
     }
 
+    if output_format != Some("png") && ppi.is_some() {
+        return Err("ppi shouldn't be specified when output_format is not png.".to_string());
+    }
+
     let canonical_input_path: PathBuf = std::fs::canonicalize(input_path).map_err(|err| {
         format!(
             "Could not resolve input file {}: {err}",
@@ -906,6 +910,31 @@ mod tests {
         );
         assert_is_png(&expected_png_1);
         assert_is_png(&expected_png_2);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn error_message_with_unexpected_ppi() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("example.typ");
+        write_typ_file(&typ_path, "= hello");
+
+        let result = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(&200.0),
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            "ppi shouldn't be specified when output_format is not png."
+        );
 
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
