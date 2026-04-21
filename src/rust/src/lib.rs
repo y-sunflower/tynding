@@ -15,7 +15,7 @@ use typst_as_lib::TypstEngine;
 use typst_html::HtmlDocument;
 use typst_pdf::{PdfOptions, PdfStandards};
 
-fn build_engine(root: &Path, font_path: Option<&str>) -> Result<TypstEngine> {
+fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
     let mut fonts: Vec<Vec<u8>> = typst_assets::fonts().map(|f| f.to_vec()).collect();
 
     if let Some(path) = font_path {
