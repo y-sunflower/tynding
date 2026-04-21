@@ -112,7 +112,11 @@ fn validate_multipage_template(
     ))
 }
 
-fn write_png(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
+fn write_png(
+    document: &PagedDocument,
+    output_path: &Path,
+    ppi: &f32,
+) -> std::result::Result<(), String> {
     let total_pages: usize = document.pages.len();
     validate_multipage_template(output_path, total_pages, OutputFormat::Png)?;
 
@@ -123,7 +127,7 @@ fn write_png(document: &PagedDocument, output_path: &Path) -> std::result::Resul
         } else {
             output_path.to_path_buf()
         };
-        let pixmap = typst_render::render(page, 144.0 / 72.0);
+        let pixmap = typst_render::render(page, ppi / 72.0);
         let png: Vec<u8> = pixmap
             .encode_png()
             .map_err(|err| format!("PNG export failed: {err}"))?;
@@ -217,6 +221,7 @@ fn compile_file(
     output_format: Option<&str>,
     root: Option<&str>,
     inputs: Option<&[String]>,
+    ppi: Option<&f32>,
 ) -> std::result::Result<String, String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -324,7 +329,10 @@ fn compile_file(
         }
         OutputFormat::Png => {
             let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
-            write_png(&doc, &output_path)?;
+            match ppi {
+                Some(ppi) => write_png(&doc, &output_path, ppi)?,
+                None => write_png(&doc, &output_path, &(144.0 / 72.0))?,
+            }
         }
         OutputFormat::Svg => {
             let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
@@ -348,6 +356,9 @@ fn compile_file(
 /// @param root Optional Typst project root. If `None`, it defaults to the parent
 ///   directory of `file`. When provided, `file` must be contained in the root
 ///   directory's subtree.
+/// @param inputs Optional additional sys inputs parameters.
+/// @param ppi Optional pixels per inch value when exporting to png. If NULL,
+///   default to 144.0.
 ///
 /// @return Output path
 ///
@@ -361,6 +372,7 @@ fn typst_compile_rust(
     #[default = "NULL"] output_format: Nullable<String>,
     #[default = "NULL"] root: Nullable<String>,
     #[default = "NULL"] inputs: Nullable<Vec<String>>,
+    #[default = "NULL"] ppi: Nullable<f32>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
@@ -368,6 +380,7 @@ fn typst_compile_rust(
     let output_format: Option<String> = output_format.into_option();
     let root: Option<String> = root.into_option();
     let inputs: Option<Vec<String>> = inputs.into_option();
+    let ppi: Option<f32> = ppi.into_option();
 
     match compile_file(
         file,
@@ -377,6 +390,7 @@ fn typst_compile_rust(
         output_format.as_deref(),
         root.as_deref(),
         inputs.as_deref(),
+        ppi.as_ref(),
     ) {
         Ok(output_path) => output_path,
         Err(message) => throw_r_error(message),
@@ -479,6 +493,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation should succeed");
 
@@ -503,6 +518,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -576,6 +592,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with custom fonts should succeed");
 
@@ -603,6 +620,7 @@ mod tests {
             None,
             None,
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
         )
         .expect("compilation with an explicit project root should succeed");
@@ -632,6 +650,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -649,6 +668,7 @@ mod tests {
 
         let err: String = compile_file(
             missing.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -680,6 +700,7 @@ mod tests {
             None,
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
             None,
+            None,
         )
         .expect_err("input outside the explicit root should return an error");
 
@@ -695,6 +716,7 @@ mod tests {
 
         let err: String = compile_file(
             txt_path.to_str().expect("path should be valid UTF-8"),
+            None,
             None,
             None,
             None,
@@ -722,6 +744,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("empty output path should return an error");
 
@@ -740,6 +763,7 @@ mod tests {
             None,
             None,
             Some(""),
+            None,
             None,
             None,
             None,
@@ -764,6 +788,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -782,6 +807,7 @@ mod tests {
             None,
             None,
             Some("ua-2"),
+            None,
             None,
             None,
             None,
@@ -807,6 +833,7 @@ mod tests {
             Some("html"),
             None,
             None,
+            None,
         )
         .expect("HTML compilation should succeed");
 
@@ -827,6 +854,7 @@ mod tests {
         let output: String = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_html.to_str().expect("path should be valid UTF-8")),
+            None,
             None,
             None,
             None,
@@ -863,6 +891,7 @@ mod tests {
             Some("png"),
             None,
             None,
+            Some(&200.0),
         )
         .expect("PNG compilation should succeed");
 
@@ -902,6 +931,7 @@ mod tests {
             Some("svg"),
             None,
             None,
+            None,
         )
         .expect("SVG compilation should succeed");
 
@@ -934,6 +964,7 @@ mod tests {
             Some("png"),
             None,
             None,
+            None,
         )
         .expect_err("multi-page PNG without output template should return an error");
 
@@ -953,6 +984,7 @@ mod tests {
             None,
             None,
             Some("svg"),
+            None,
             None,
             None,
         )
@@ -989,6 +1021,7 @@ mod tests {
             Some(""),
             None,
             None,
+            None,
         )
         .expect_err("empty output format should return an error");
 
@@ -1014,6 +1047,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .expect_err("unknown output extension should return an error");
 
@@ -1033,6 +1067,7 @@ mod tests {
             None,
             Some("1.7"),
             Some("html"),
+            None,
             None,
             None,
         )

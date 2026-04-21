@@ -11,6 +11,7 @@ typst_compile(
   pdf_standard = NULL,
   output_format = NULL,
   root = NULL,
+  ppi = NULL,
   ...
 )
 }
@@ -34,6 +35,9 @@ outputs, \code{output} must be a template path containing at least one of
 
 \item{root}{Optional Typst project root. Defaults to the parent directory of
 \code{file}. When provided, \code{file} must be contained in that directory's subtree.}
+
+\item{ppi}{Optional pixels per inch value when exporting to png. If NULL,
+default to 144.0.}
 
 \item{...}{Named inputs passed to the Typst document via \code{sys.inputs}.
 Each argument must be named. Scalar values are passed as-is; other values
