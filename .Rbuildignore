@@ -40,3 +40,4 @@ dev.R
 ^src/Makevars\.win$
 ^vignettes/*
 ^hello.typ$
+^justfile$

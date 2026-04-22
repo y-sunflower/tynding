@@ -1,7 +1,9 @@
 mod fonts;
 mod inputs;
+mod multipage;
 mod output;
 mod standard;
+mod write;
 
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
@@ -13,7 +15,8 @@ use typst::foundations::Dict;
 use typst::layout::PagedDocument;
 use typst_as_lib::TypstEngine;
 use typst_html::HtmlDocument;
-use typst_pdf::{PdfOptions, PdfStandards};
+use typst_pdf::PdfStandards;
+use write::{write_html, write_pdf, write_png, write_svg};
 
 fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
     let mut fonts: Vec<Vec<u8>> = typst_assets::fonts().map(|f| f.to_vec()).collect();
@@ -49,117 +52,6 @@ fn compile_html_document(
         .compile_with_input(main_file, sys_inputs.clone())
         .output
         .map_err(|err| format!("Typst compilation failed: {err}"))
-}
-
-fn write_pdf(
-    document: &PagedDocument,
-    output_path: &Path,
-    standards: PdfStandards,
-) -> std::result::Result<(), String> {
-    let pdf_options: PdfOptions<'_> = PdfOptions {
-        standards,
-        ..Default::default()
-    };
-
-    let pdf: Vec<u8> = typst_pdf::pdf(document, &pdf_options)
-        .map_err(|err| format!("PDF export failed: {err:?}"))?;
-
-    std::fs::write(output_path, pdf)
-        .map_err(|err| format!("Could not write PDF to {}: {err}", output_path.display()))
-}
-
-fn write_html(document: &HtmlDocument, output_path: &Path) -> std::result::Result<(), String> {
-    let html: String =
-        typst_html::html(document).map_err(|err| format!("HTML export failed: {err:?}"))?;
-
-    std::fs::write(output_path, html.as_bytes())
-        .map_err(|err| format!("Could not write HTML to {}: {err}", output_path.display()))
-}
-
-fn render_page_template_path(template: &Path, page: usize, total_pages: usize) -> PathBuf {
-    let width: usize = total_pages.to_string().len();
-    let rendered: String = template
-        .to_string_lossy()
-        .replace("{0p}", &format!("{page:0width$}"))
-        .replace("{p}", &page.to_string())
-        .replace("{t}", &total_pages.to_string());
-    PathBuf::from(rendered)
-}
-
-fn validate_multipage_template(
-    output_path: &Path,
-    total_pages: usize,
-    format: OutputFormat,
-) -> std::result::Result<(), String> {
-    if total_pages <= 1 {
-        return Ok(());
-    }
-
-    let template: String = output_path.to_string_lossy().into_owned();
-    if template.contains("{p}") || template.contains("{0p}") || template.contains("{t}") {
-        return Ok(());
-    }
-
-    Err(format!(
-        "Multi-page {} output requires an `output` path template containing at least one of {{p}}, {{0p}}, or {{t}}. See {}.",
-        format.extension(),
-        format!("https://typst.app/docs/reference/{}/", format.extension())
-    ))
-}
-
-fn write_png(
-    document: &PagedDocument,
-    output_path: &Path,
-    ppi: &f32,
-) -> std::result::Result<(), String> {
-    let total_pages: usize = document.pages.len();
-    validate_multipage_template(output_path, total_pages, OutputFormat::Png)?;
-
-    for (index, page) in document.pages.iter().enumerate() {
-        let page_number: usize = index + 1;
-        let page_output_path: PathBuf = if total_pages > 1 {
-            render_page_template_path(output_path, page_number, total_pages)
-        } else {
-            output_path.to_path_buf()
-        };
-        let pixmap = typst_render::render(page, ppi / 72.0);
-        let png: Vec<u8> = pixmap
-            .encode_png()
-            .map_err(|err| format!("PNG export failed: {err}"))?;
-
-        std::fs::write(&page_output_path, png).map_err(|err| {
-            format!(
-                "Could not write PNG to {}: {err}",
-                page_output_path.display()
-            )
-        })?;
-    }
-
-    Ok(())
-}
-
-fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
-    let total_pages: usize = document.pages.len();
-    validate_multipage_template(output_path, total_pages, OutputFormat::Svg)?;
-
-    for (index, page) in document.pages.iter().enumerate() {
-        let page_number: usize = index + 1;
-        let page_output_path: PathBuf = if total_pages > 1 {
-            render_page_template_path(output_path, page_number, total_pages)
-        } else {
-            output_path.to_path_buf()
-        };
-        let svg: String = typst_svg::svg(page);
-
-        std::fs::write(&page_output_path, svg.as_bytes()).map_err(|err| {
-            format!(
-                "Could not write SVG to {}: {err}",
-                page_output_path.display()
-            )
-        })?;
-    }
-
-    Ok(())
 }
 
 /// Compiles a `.typ` Typst file into a supported output format.
@@ -406,7 +298,8 @@ extendr_module! {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_file, load_fonts_from_dir, render_page_template_path};
+    use super::multipage::render_page_template_path;
+    use super::{compile_file, load_fonts_from_dir};
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};

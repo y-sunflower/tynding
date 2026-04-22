@@ -16,7 +16,7 @@
 
 ## Installation
 
-From r-universe (recommended):
+From R-universe (recommended):
 
 ```r
 install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
@@ -104,12 +104,26 @@ markup <- c(
 )
 
 typ_file <- typst_write(markup)
-png_file <- typst_compile(typ_file, root = "png")
+png_file <- typst_compile(typ_file, output_format = "png")
 ```
 
-Multi-page `png` and `svg` exports are merged into a single vertically stacked image so the function can keep returning one output path.
+Multi-page `png` and `svg` exports with multiple pages will create multiple files. In order to [behaves the same as the Typst CLI](https://typst.app/docs/reference/png/#exporting-as-png), you'll need to pass an output file name as a template string. For example:
 
-- root path: by default, the root path corresponds to the parent directory of `file` (detected automatically), but you can use the `root` argument to specify a different path, which is often useful in more complex projects where, for example, font files are located in a parent directory.
+```r
+library(tynding)
+
+markup <- c(
+  "this document was compiled from R.",
+  "#pagebreak()"
+)
+
+typ_file <- typst_write(markup)
+png_file <- typst_compile(typ_file, output_format = "png", output = "output-{p}.png")
+```
+
+This will create `output-1.png` and `output-2.png`.
+
+- `root`: by default, the root path corresponds to the parent directory of `file` (detected automatically), but you can use the `root` argument to specify a different path, which is often useful in more complex projects where, for example, font files are located in a parent directory.
 
 ```r
 library(tynding)
@@ -172,11 +186,7 @@ Then your `file.typ` looks like this:
 
 ![](./example1.png)
 
-More information about inputs:
-
-- Named inputs passed to the Typst document via `sys.inputs`
-- Each argument must be named
-- Scalar values are passed as-is; other values are **JSON-encoded** (using `jsonlite::toJSON()`)
+All extra arguments are accepted. Scalar values are passed as-is; other values are **JSON-encoded** (using `jsonlite::toJSON()`)
 
 This means that we can, for instance, send a dataframe from R to create a Typst table.
 
