@@ -4,7 +4,7 @@ on:
       - main
   pull_request:
 
-name: jarl-check
+name: Jarl
 
 permissions: read-all
 
