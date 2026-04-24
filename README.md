@@ -146,6 +146,8 @@ root/
     └── MyFont-Bold.tff
 ```
 
+Learn more in the [documentation website](https://y-sunflower.github.io/tynding/).
+
 <br>
 
 ## Advanced usage with inputs
