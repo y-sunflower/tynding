@@ -13,6 +13,7 @@
   - _any other kind of inputs_, for advanced templating
 
 <br>
+<br>
 
 ## Installation
 
@@ -23,6 +24,7 @@ install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 > [!NOTE]
 > `tynding` uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.
 
+<br>
 <br>
 
 ## Quick start
@@ -54,6 +56,8 @@ typ_file <- typst_write(markup)
 pdf_file <- typst_compile(typ_file, font_path = "path/to/fonts")
 ```
 
+<br>
+
 - pdf standard: pass `pdf_standard` to request a Typst PDF profile such as `"1.7"`, `"2.0"`, `"a-2b"`, or `"ua-1"`.
 
 ```r
@@ -67,6 +71,8 @@ pdf_file <- typst_compile(typ_file, pdf_standard = "ua-1")
 ```
 
 For `ua-1`, your document needs a title. Unsupported or invalid standards raise an error.
+
+<br>
 
 - output format: pass `output_format` to export as `"pdf"`, `"html"`, `"png"`, or `"svg"`. If you omit it, `tynding` will infer the format from the `output` extension when possible and otherwise default to PDF.
 
@@ -99,6 +105,8 @@ png_file <- typst_compile(typ_file, output_format = "png", output = "output-{p}.
 
 This will create `output-1.png` and `output-2.png`.
 
+<br>
+
 - `root`: by default, the root path corresponds to the parent directory of `file` (detected automatically), but you can use the `root` argument to specify a different path, which is often useful in more complex projects where, for example, font files are located in a parent directory.
 
 ```r
@@ -114,7 +122,7 @@ typst_compile(
 This will let you organize your project as follow, which isn't possible by default:
 
 ```
-root/
+reports/
 ├── typst/
 │   └── document.typ
 └── fonts/
@@ -136,7 +144,7 @@ library(tynding)
 typst_compile(
   "file.typ",
   title = "Quarterly report",
-  # all additional arguments...
+  # all additional arguments... Can be anything you want!
   author = "Joseph",
   persons = list(
     list(name = "Joseph", age = 25),
@@ -153,7 +161,7 @@ Then your `file.typ` looks like this:
 
 #let title = sys.inputs.at("title")
 #let author = sys.inputs.at("author")
-#let persons = json(sys.inputs.at("persons"))
+#let persons = json(bytes(sys.inputs.at("persons")))
 
 = #title
 *Author:* #author
@@ -204,11 +212,70 @@ Typst file looks like:
 
 <br>
 
+## Error and warning messages
+
+`tynding` gives you the same great error and warning messages that Typst would give you, which makes things easier to debug.
+
+- Errors
+
+For example, this will raise an error since `hello()` is undefined:
+
+```typst
+= Title of the report
+Lorem ipsum...
+
+#hello()
+```
+
+When trying to compile it:
+
+```R
+library(tynding)
+
+typst_compile("document.typ")
+```
+
+```R
+! error: unknown variable: hello
+  ┌─ document.typ:3:2
+  │
+3 │ #hello
+  │  ^^^^^
+```
+
+- Warnings
+
+Same thing happens with warnings, where Typst warnings raise R warnings:
+
+```typst
+#set text(font: "invalid font")
+
+Hello world
+```
+
+When trying to compile:
+
+```R
+library(tynding)
+
+typst_compile("document.typ")
+```
+
+```R
+warning: unknown font family: invalid font
+  ┌─ document.typ:1:17
+  │
+1 │ #set text(font: "invalid font")
+  │                 ^^^^^^^^^^^^^^
+```
+
+<br>
+
 ## Related project
 
 [`typr`](https://christophertkenny.com/typr/) is a package with a very similar goal, but it works quite differently under the hood. `typr` compiles your document using the Typst/Quarto CLI, while `tynding` uses the Typst compiler itself via the Typst Rust library.
 
-Both have their pros and cons, but `tynding` is designed to be more portable in the sense that you don’t have to worry about installing Typst separately and/or adding it to your PATH.
+Both have their pros and cons, but `tynding` is designed to be **more portable** in the sense that you don’t have to worry about installing Typst separately and/or adding it to your PATH. `tynding` will also do other useful stuff such as R to Typst conversion, automatic encoding of objects that need to, and more!
 
 <br>
 
