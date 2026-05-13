@@ -25,19 +25,6 @@ install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 > [!NOTE]
 > `tynding` uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.
 
-Or development version from GitHub (the package builds Rust code during installation, so you need):
-
-- `R >= 4.2`
-- `rustc >= 1.89.0` (see [installation](https://rust-lang.org/tools/install/))
-- (Windows users only) GNU toolchain: run `rustup target add x86_64-pc-windows-gnu`
-
-Then:
-
-```r
-#install.packages("pak")
-pak::pak("y-sunflower/tynding")
-```
-
 <br>
 
 ## Quick start
@@ -51,10 +38,8 @@ markup <- c(
   "this document was compiled from R."
 )
 
-typ_file <- typst_write(markup)
-pdf_file <- typst_compile(typ_file)
-
-pdf_file
+typ_file <- typst_write(markup) # write Typst file
+typst_compile(typ_file, output = "report.pdf") # and then compile it
 ```
 
 `typst_write()` writes a character vector to a `.typ` file. `typst_compile()` compiles that file and returns the output path. If you do not pass `output`, the result is written next to the source file using the extension implied by the output format. If no output format can be inferred, PDF is used by default.

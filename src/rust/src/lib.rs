@@ -303,7 +303,7 @@ fn typst_compile_rust(
     ) {
         Ok((output_path, warnings)) => {
             for w in warnings {
-                let _ = call!("warning", w);
+                warn!(&w)
             }
             output_path
         }
