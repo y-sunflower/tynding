@@ -71,17 +71,16 @@
 </ul>
 </li>
 </ul>
-<p><br></p>
+<p><br><br></p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>From R-universe (recommended):</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"tynding"</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://y-sunflower.r-universe.dev"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <blockquote>
 <p>[!NOTE] <code>tynding</code> uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.</p>
 </blockquote>
-<p><br></p>
+<p><br><br></p>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
@@ -110,6 +109,7 @@
 <span></span>
 <span><span class="va">typ_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_write.html">typst_write</a></span><span class="op">(</span><span class="va">markup</span><span class="op">)</span></span>
 <span><span class="va">pdf_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span><span class="va">typ_file</span>, font_path <span class="op">=</span> <span class="st">"path/to/fonts"</span><span class="op">)</span></span></code></pre></div>
+<p><br></p>
 <ul>
 <li>pdf standard: pass <code>pdf_standard</code> to request a Typst PDF profile such as <code>"1.7"</code>, <code>"2.0"</code>, <code>"a-2b"</code>, or <code>"ua-1"</code>.</li>
 </ul>
@@ -122,6 +122,7 @@
 <span><span class="va">typ_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_write.html">typst_write</a></span><span class="op">(</span><span class="va">markup</span><span class="op">)</span></span>
 <span><span class="va">pdf_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span><span class="va">typ_file</span>, pdf_standard <span class="op">=</span> <span class="st">"ua-1"</span><span class="op">)</span></span></code></pre></div>
 <p>For <code>ua-1</code>, your document needs a title. Unsupported or invalid standards raise an error.</p>
+<p><br></p>
 <ul>
 <li>output format: pass <code>output_format</code> to export as <code>"pdf"</code>, <code>"html"</code>, <code>"png"</code>, or <code>"svg"</code>. If you omit it, <code>tynding</code> will infer the format from the <code>output</code> extension when possible and otherwise default to PDF.</li>
 </ul>
@@ -148,6 +149,7 @@
 <span><span class="va">typ_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_write.html">typst_write</a></span><span class="op">(</span><span class="va">markup</span><span class="op">)</span></span>
 <span><span class="va">png_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span><span class="va">typ_file</span>, output_format <span class="op">=</span> <span class="st">"png"</span>, output <span class="op">=</span> <span class="st">"output-{p}.png"</span><span class="op">)</span></span></code></pre></div>
 <p>This will create <code>output-1.png</code> and <code>output-2.png</code>.</p>
+<p><br></p>
 <ul>
 <li>
 <code>root</code>: by default, the root path corresponds to the parent directory of <code>file</code> (detected automatically), but you can use the <code>root</code> argument to specify a different path, which is often useful in more complex projects where, for example, font files are located in a parent directory.</li>
@@ -161,7 +163,7 @@
 <span>  font_path <span class="op">=</span> <span class="st">"reports/fonts"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>This will let you organize your project as follow, which isn’t possible by default:</p>
-<pre><code>root/
+<pre><code>reports/
 ├── typst/
 │   └── document.typ
 └── fonts/
@@ -180,7 +182,7 @@
 <span><span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span></span>
 <span>  <span class="st">"file.typ"</span>,</span>
 <span>  title <span class="op">=</span> <span class="st">"Quarterly report"</span>,</span>
-<span>  <span class="co"># all additional arguments...</span></span>
+<span>  <span class="co"># all additional arguments... Can be anything you want!</span></span>
 <span>  author <span class="op">=</span> <span class="st">"Joseph"</span>,</span>
 <span>  persons <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Joseph"</span>, age <span class="op">=</span> <span class="fl">25</span><span class="op">)</span>,</span>
@@ -193,7 +195,7 @@
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="kw">#let</span> <span class="va">title</span> <span class="op">=</span> sys<span class="op">.</span>inputs<span class="op">.</span>at<span class="op">(</span><span class="st">"title"</span><span class="op">)</span></span>
 <span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="kw">#let</span> <span class="va">author</span> <span class="op">=</span> sys<span class="op">.</span>inputs<span class="op">.</span>at<span class="op">(</span><span class="st">"author"</span><span class="op">)</span></span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="kw">#let</span> <span class="va">persons</span> <span class="op">=</span> json<span class="op">(</span>sys<span class="op">.</span>inputs<span class="op">.</span>at<span class="op">(</span><span class="st">"persons"</span><span class="op">))</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="kw">#let</span> <span class="va">persons</span> <span class="op">=</span> json<span class="op">(</span>bytes<span class="op">(</span>sys<span class="op">.</span>inputs<span class="op">.</span>at<span class="op">(</span><span class="st">"persons"</span><span class="op">)))</span></span>
 <span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
 <span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="fu">= #title</span></span>
 <span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>*Author:* <span class="kw">#</span>author</span>
@@ -233,10 +235,51 @@
 <p><br></p>
 </div>
 <div class="section level2">
+<h2 id="error-and-warning-messages">Error and warning messages<a class="anchor" aria-label="anchor" href="#error-and-warning-messages"></a>
+</h2>
+<p><code>tynding</code> gives you the same great error and warning messages that Typst would give you, which makes things easier to debug.</p>
+<ul>
+<li>Errors</li>
+</ul>
+<p>For example, this will raise an error since <code>hello()</code> is undefined:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode typst"><code class="sourceCode typst"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">= Title of the report</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>Lorem ipsum...</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="kw">#</span>hello<span class="op">()</span></span></code></pre></div>
+<p>When trying to compile it:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://y-sunflower.github.io/tynding/">tynding</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span><span class="st">"document.typ"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="sc">!</span> error<span class="sc">:</span> unknown variable<span class="sc">:</span> hello</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  ┌─ document.typ<span class="sc">:</span><span class="dv">3</span><span class="sc">:</span><span class="dv">2</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  │</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="dv">3</span> │ <span class="co">#hello</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>  │  <span class="sc">^</span><span class="er">^^^^</span></span></code></pre></div>
+<ul>
+<li>Warnings</li>
+</ul>
+<p>Same thing happens with warnings, where Typst warnings raise R warnings:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode typst"><code class="sourceCode typst"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="kw">#set</span> <span class="va">text</span><span class="op">(</span>font<span class="op">:</span> <span class="st">"invalid font"</span><span class="op">)</span></span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>Hello world</span></code></pre></div>
+<p>When trying to compile:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://y-sunflower.github.io/tynding/">tynding</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/typst_compile.html">typst_compile</a></span><span class="op">(</span><span class="st">"document.typ"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>warning<span class="sc">:</span> unknown font family<span class="sc">:</span> invalid font</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  ┌─ document.typ<span class="sc">:</span><span class="dv">1</span><span class="sc">:</span><span class="dv">17</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  │</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="dv">1</span> │ <span class="co">#set text(font: "invalid font")</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>  │                 <span class="sc">^</span><span class="er">^^^^^^^^^^^^^</span></span></code></pre></div>
+<p><br></p>
+</div>
+<div class="section level2">
 <h2 id="related-project">Related project<a class="anchor" aria-label="anchor" href="#related-project"></a>
 </h2>
 <p><a href="https://christophertkenny.com/typr/" class="external-link"><code>typr</code></a> is a package with a very similar goal, but it works quite differently under the hood. <code>typr</code> compiles your document using the Typst/Quarto CLI, while <code>tynding</code> uses the Typst compiler itself via the Typst Rust library.</p>
-<p>Both have their pros and cons, but <code>tynding</code> is designed to be more portable in the sense that you don’t have to worry about installing Typst separately and/or adding it to your PATH.</p>
+<p>Both have their pros and cons, but <code>tynding</code> is designed to be <strong>more portable</strong> in the sense that you don’t have to worry about installing Typst separately and/or adding it to your PATH. <code>tynding</code> will also do other useful stuff such as R to Typst conversion, automatic encoding of objects that need to, and more!</p>
 <p><br></p>
 </div>
 <div class="section level2">
