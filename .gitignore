@@ -19,3 +19,4 @@ src/rust/target
 src/vendor/
 *.so
 ..Rcheck
+.claude/

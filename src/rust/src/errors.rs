@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use typst::diag::{HintedString, Severity, SourceDiagnostic};
-use typst::syntax::{FileId, Source, VirtualRoot};
+use typst::syntax::{FileId, Source};
 use typst_as_lib::TypstAsLibError;
 
 pub fn format_typst_errors(root: &Path, err: &TypstAsLibError) -> String {
@@ -90,9 +90,9 @@ fn append_hints(out: &mut String, diagnostic: &SourceDiagnostic) {
 }
 
 fn load_source(root: &Path, file_id: FileId) -> Result<Source, String> {
-    let path = match file_id.root() {
-        VirtualRoot::Project => file_id.vpath().resolve(root),
-        VirtualRoot::Package(_) => None,
+    let path = match file_id.package() {
+        None => file_id.vpath().resolve(root),
+        Some(_) => None,
     }
     .ok_or_else(|| "could not resolve source path".to_string())?;
 
@@ -103,9 +103,9 @@ fn load_source(root: &Path, file_id: FileId) -> Result<Source, String> {
 }
 
 fn display_file_id(file_id: FileId) -> String {
-    match file_id.root() {
-        VirtualRoot::Project => file_id.vpath().get_without_slash().to_owned(),
-        VirtualRoot::Package(package) => format!("{package}{}", file_id.vpath().get_with_slash()),
+    match file_id.package() {
+        None => file_id.vpath().as_rootless_path().display().to_string(),
+        Some(package) => format!("{package}{}", file_id.vpath().as_rooted_path().display()),
     }
 }
 

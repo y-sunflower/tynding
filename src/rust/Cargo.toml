@@ -18,6 +18,7 @@ typst-html = "0.14.2"
 typst-pdf = "0.14.2"
 typst-render = "0.14.2"
 typst-svg = "0.14.2"
+typst-syntax = "0.14.2"
 
 [profile.release]
 lto = true
