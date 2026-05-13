@@ -37,7 +37,12 @@ test_that("Missing import file produces a rich error message", {
   error_message <- conditionMessage(error)
   error_message <- gsub("\r\n", "\n", error_message, fixed = TRUE)
   error_message <- gsub("\\", "/", error_message, fixed = TRUE)
-  error_message <- gsub("(searched at //?/", "(searched at ", error_message, fixed = TRUE)
+  error_message <- gsub(
+    "(searched at //?/",
+    "(searched at ",
+    error_message,
+    fixed = TRUE
+  )
 
   expect_equal(
     error_message,
