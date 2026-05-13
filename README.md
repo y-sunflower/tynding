@@ -16,8 +16,6 @@
 
 ## Installation
 
-From R-universe (recommended):
-
 ```r
 install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
