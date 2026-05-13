@@ -25,43 +25,21 @@ install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 > [!NOTE]
 > `tynding` uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.
 
-Or development version from GitHub (the package builds Rust code during installation, so you need):
-
-- `R >= 4.2`
-- `rustc >= 1.89.0` (see [installation](https://rust-lang.org/tools/install/))
-- (Windows users only) GNU toolchain: run `rustup target add x86_64-pc-windows-gnu`
-
-Then:
-
-```r
-#install.packages("pak")
-pak::pak("y-sunflower/tynding")
-```
-
 <br>
 
 ## Quick start
 
+You just need to specify the path of your Typst document to get started!
+
 ```r
 library(tynding)
 
-markup <- c(
-  '#set document(title: "hello from tynding")',
-  "= hello world",
-  "this document was compiled from R."
-)
-
-typ_file <- typst_write(markup)
-pdf_file <- typst_compile(typ_file)
-
-pdf_file
+typst_compile("document.typ", output = "report.pdf")
 ```
-
-`typst_write()` writes a character vector to a `.typ` file. `typst_compile()` compiles that file and returns the output path. If you do not pass `output`, the result is written next to the source file using the extension implied by the output format. If no output format can be inferred, PDF is used by default.
 
 <br>
 
-## Features
+## Features overview
 
 - fonts: pass `font_path` to load font files from a directory before compiling.
 
@@ -160,6 +138,7 @@ library(tynding)
 typst_compile(
   "file.typ",
   title = "Quarterly report",
+  # all additional arguments...
   author = "Joseph",
   persons = list(
     list(name = "Joseph", age = 25),
@@ -176,7 +155,7 @@ Then your `file.typ` looks like this:
 
 #let title = sys.inputs.at("title")
 #let author = sys.inputs.at("author")
-#let persons = json.decode(sys.inputs.at("persons"))
+#let persons = json(sys.inputs.at("persons"))
 
 = #title
 *Author:* #author
@@ -210,7 +189,7 @@ Typst file looks like:
 ```typ
 #set page(width: 10cm, height: 15cm, fill: rgb("#faedcd"))
 
-#let data = json.decode(sys.inputs.at("data"))
+#let data = json(sys.inputs.at("data"))
 #let keys = data.at(0).keys()
 #let cols = (1fr,) + range(1, keys.len()).map(_ => 1fr)
 

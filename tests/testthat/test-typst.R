@@ -16,7 +16,10 @@ test_that("Valid Typst compile usage", {
   typst_compile(typ_file, output = pdf_file)
   expect_true(file.exists(pdf_file))
 
-  html_file <- typst_compile(typ_file, output_format = "html")
+  expect_warning(
+    html_file <- typst_compile(typ_file, output_format = "html"),
+    regexp = "html export is under active development and incomplete"
+  )
   generated_files <- c(generated_files, html_file)
   expect_true(file.exists(html_file))
 

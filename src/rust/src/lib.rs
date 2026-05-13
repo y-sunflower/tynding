@@ -1,3 +1,4 @@
+mod errors;
 mod fonts;
 mod inputs;
 mod multipage;
@@ -5,6 +6,7 @@ mod output;
 mod standard;
 mod write;
 
+use errors::{format_typst_errors, format_typst_warnings};
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
 use inputs::build_sys_inputs;
@@ -36,22 +38,30 @@ fn compile_paged_document(
     engine: &TypstEngine,
     main_file: &str,
     sys_inputs: &Dict,
-) -> std::result::Result<PagedDocument, String> {
-    engine
-        .compile_with_input(main_file, sys_inputs.clone())
+    root: &Path,
+) -> std::result::Result<(PagedDocument, Vec<String>), String> {
+    let warned = engine.compile_with_input(main_file, sys_inputs.clone());
+    let warnings = format_typst_warnings(root, &warned.warnings);
+
+    warned
         .output
-        .map_err(|err| format!("Typst compilation failed: {err}"))
+        .map(|doc| (doc, warnings))
+        .map_err(|err| format_typst_errors(root, &err))
 }
 
 fn compile_html_document(
     engine: &TypstEngine,
     main_file: &str,
     sys_inputs: &Dict,
-) -> std::result::Result<HtmlDocument, String> {
-    engine
-        .compile_with_input(main_file, sys_inputs.clone())
+    root: &Path,
+) -> std::result::Result<(HtmlDocument, Vec<String>), String> {
+    let warned = engine.compile_with_input(main_file, sys_inputs.clone());
+    let warnings = format_typst_warnings(root, &warned.warnings);
+
+    warned
         .output
-        .map_err(|err| format!("Typst compilation failed: {err}"))
+        .map(|doc| (doc, warnings))
+        .map_err(|err| format_typst_errors(root, &err))
 }
 
 /// Compiles a `.typ` Typst file into a supported output format.
@@ -109,7 +119,7 @@ fn compile_file(
     root: Option<&str>,
     inputs: Option<&[String]>,
     ppi: Option<&f32>,
-) -> std::result::Result<String, String> {
+) -> std::result::Result<(String, Vec<String>), String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
         return Err(format!(
@@ -209,29 +219,37 @@ fn compile_file(
     let engine: TypstEngine = build_engine(&root_path, font_path)?;
     let sys_inputs: Dict = build_sys_inputs(inputs)?;
 
-    match output_format {
+    let warnings = match output_format {
         OutputFormat::Pdf => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let (doc, warnings) =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_pdf(&doc, &output_path, standards)?;
+            warnings
         }
         OutputFormat::Html => {
-            let doc: HtmlDocument = compile_html_document(&engine, &main_file, &sys_inputs)?;
+            let (doc, warnings) =
+                compile_html_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_html(&doc, &output_path)?;
+            warnings
         }
         OutputFormat::Png => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let (doc, warnings) =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             match ppi {
                 Some(ppi) => write_png(&doc, &output_path, ppi)?,
                 None => write_png(&doc, &output_path, &(144.0))?,
             }
+            warnings
         }
         OutputFormat::Svg => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let (doc, warnings) =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_svg(&doc, &output_path)?;
+            warnings
         }
-    }
+    };
 
-    Ok(output_path.to_string_lossy().into_owned())
+    Ok((output_path.to_string_lossy().into_owned(), warnings))
 }
 
 /// @title Compile a `.typ` file and return the output path.
@@ -257,13 +275,13 @@ fn compile_file(
 #[extendr]
 fn typst_compile_rust(
     file: &str,
-    #[default = "NULL"] output: Nullable<String>,
-    #[default = "NULL"] font_path: Nullable<String>,
-    #[default = "NULL"] pdf_standard: Nullable<String>,
-    #[default = "NULL"] output_format: Nullable<String>,
-    #[default = "NULL"] root: Nullable<String>,
-    #[default = "NULL"] inputs: Nullable<Vec<String>>,
-    #[default = "NULL"] ppi: Nullable<f32>,
+    #[extendr(default = "NULL")] output: Nullable<String>,
+    #[extendr(default = "NULL")] font_path: Nullable<String>,
+    #[extendr(default = "NULL")] pdf_standard: Nullable<String>,
+    #[extendr(default = "NULL")] output_format: Nullable<String>,
+    #[extendr(default = "NULL")] root: Nullable<String>,
+    #[extendr(default = "NULL")] inputs: Nullable<Vec<String>>,
+    #[extendr(default = "NULL")] ppi: Nullable<f32>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
@@ -283,7 +301,12 @@ fn typst_compile_rust(
         inputs.as_deref(),
         ppi.as_ref(),
     ) {
-        Ok(output_path) => output_path,
+        Ok((output_path, warnings)) => {
+            for w in warnings {
+                warn!(&w)
+            }
+            output_path
+        }
         Err(message) => throw_r_error(message),
     }
 }
@@ -377,7 +400,7 @@ mod tests {
         let expected_pdf: PathBuf = dir.join("default.pdf");
         write_typ_file(&typ_path, "= Hello from test");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -407,7 +430,7 @@ mod tests {
         let custom_pdf: PathBuf = dir.join("custom-output.pdf");
         write_typ_file(&typ_path, "= Hello custom output");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_pdf.to_str().expect("path should be valid UTF-8")),
             None,
@@ -476,7 +499,7 @@ mod tests {
             "#set document(title: \"Fixture fonts\")\n#set text(font: \"Ultra\")\n= Hello from custom font",
         );
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             Some(font_dir.to_str().expect("path should be valid UTF-8")),
@@ -505,7 +528,7 @@ mod tests {
         fs::create_dir_all(&nested_dir).expect("could not create nested project directory");
         write_typ_file(&typ_path, "= Hello from nested root test");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -534,7 +557,7 @@ mod tests {
             "#set document(title: \"PDF standard test\")\n= Hello from PDF standard test",
         );
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -717,7 +740,7 @@ mod tests {
         let expected_html: PathBuf = dir.join("default-html.html");
         write_typ_file(&typ_path, "= Hello HTML");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             None,
             None,
@@ -743,7 +766,7 @@ mod tests {
         let custom_html: PathBuf = dir.join("custom-output.html");
         write_typ_file(&typ_path, "= Hello inferred HTML");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(custom_html.to_str().expect("path should be valid UTF-8")),
             None,
@@ -771,7 +794,7 @@ mod tests {
         let expected_png_2: PathBuf = dir.join("multipage-png-2.png");
         write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(
                 output_template
@@ -836,7 +859,7 @@ mod tests {
         let expected_svg_2: PathBuf = dir.join("multipage-svg-2.svg");
         write_typ_file(&typ_path, "= First page\n#pagebreak()\n= Second page");
 
-        let output: String = compile_file(
+        let (output, _warnings): (String, Vec<String>) = compile_file(
             typ_path.to_str().expect("path should be valid UTF-8"),
             Some(
                 output_template

@@ -1,7 +1,7 @@
 #set page(width: 10cm, height: 4cm)
 #let title = sys.inputs.at("title", default: "No title found")
 #let author = sys.inputs.at("author", default: "No author found")
-#let persons = json.decode(sys.inputs.at("persons", default: none))
+#let persons = json(bytes(sys.inputs.at("persons")))
 
 = #title
 *Author:* #author

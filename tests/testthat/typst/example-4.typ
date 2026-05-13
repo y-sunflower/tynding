@@ -8,7 +8,6 @@
   #circle(fill: aqua, stroke: 5pt + red)[
     #align(right)[
       #text(
-        font: "Roboto",
         size: 1.2em,
       )[My favorite food is #food!]
     ]
