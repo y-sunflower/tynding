@@ -1,4 +1,7 @@
+# We skip tests on R CMD CHECK here because path resolution seems a bit too complex.
+
 test_that("Unknown variable produces a rich error message", {
+  skip_on_cran()
   input_file <- test_path("typst", "error-unknown-variable.typ")
 
   expect_error(
@@ -13,6 +16,7 @@ test_that("Unknown variable produces a rich error message", {
 })
 
 test_that("Type mismatch on set rule produces a rich error message", {
+  skip_on_cran()
   input_file <- test_path("typst", "error-type-mismatch.typ")
 
   expect_error(
@@ -27,6 +31,7 @@ test_that("Type mismatch on set rule produces a rich error message", {
 })
 
 test_that("Missing import file produces a rich error message", {
+  skip_on_cran()
   input_file <- test_path("typst", "error-missing-import.typ")
   searched_path <- file.path(
     normalizePath(test_path("typst"), winslash = "/"),
@@ -58,6 +63,7 @@ test_that("Missing import file produces a rich error message", {
 })
 
 test_that("More complex error message", {
+  skip_on_cran()
   input_file <- test_path("typst", "error-complete.typ")
 
   expect_error(
