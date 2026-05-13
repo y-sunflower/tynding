@@ -18,6 +18,13 @@ pub fn format_typst_errors(root: &Path, err: &TypstAsLibError) -> String {
     }
 }
 
+pub fn format_typst_warnings(root: &Path, warnings: &[SourceDiagnostic]) -> Vec<String> {
+    warnings
+        .iter()
+        .map(|d| format_source_diagnostic(root, d))
+        .collect()
+}
+
 fn format_hinted_string(hinted: &HintedString) -> String {
     let mut out = format!("error: {}", hinted.message());
     for hint in hinted.hints() {
