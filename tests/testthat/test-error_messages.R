@@ -28,14 +28,21 @@ test_that("Type mismatch on set rule produces a rich error message", {
 
 test_that("Missing import file produces a rich error message", {
   input_file <- test_path("typst", "error-missing-import.typ")
+  searched_path <- file.path(
+    normalizePath(test_path("typst")),
+    "does-not-exist.typ"
+  )
 
   expect_error(
     typst_compile(input_file),
-    'error: file not found (searched at /Users/josephbarbier/l/tynding/tests/testthat/typst/does-not-exist.typ)
+    sprintf(
+      'error: file not found (searched at %s)
   ┌─ error-missing-import.typ:1:9
   │
 1 │ #import "does-not-exist.typ": *
   │         ^^^^^^^^^^^^^^^^^^^^',
+      searched_path
+    ),
     fixed = TRUE
   )
 })
