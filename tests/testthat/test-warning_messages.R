@@ -1,4 +1,5 @@
 test_that("Unknown font produces a warning", {
+  skip_on_cran()
   input_file <- test_path("typst", "warning-messages.typ")
 
   expect_warning(
@@ -13,6 +14,7 @@ test_that("Unknown font produces a warning", {
 })
 
 test_that("Unknown font produces a different warning", {
+  skip_on_cran()
   input_file <- test_path("typst", "warning-other-message.typ")
 
   expect_warning(

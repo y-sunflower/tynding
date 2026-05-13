@@ -27,6 +27,7 @@ dev.R
 ^Meta$
 ^BinaryFiles
 ^sandbox/
+^.claude/
 ^release.sh
 ^example1.png
 ^example2.png
