@@ -3,7 +3,7 @@ Title: 'Typst' Bindings
 Version: 0.2.1
 Authors@R: 
     person("Joseph", "Barbier", , "joseph@ysunflower.com", role = c("aut", "cre"))
-Description: Provides bindings to the 'Typst' typesetting system, enabling users to compile 'Typst' documents directly from R. The package interfaces with the 'Typst' 'Rust' library to render documents, making it possible to integrate 'Typst'-based workflows into R scripts, reports, and reproducible research pipelines. It supports programmatic document generation, compilation, and output handling, facilitating seamless use of 'Typst' alongside tools such as knitr and Quarto.
+Description: Provides bindings to the 'Typst' typesetting system, enabling users to compile 'Typst' documents directly from R. The package interfaces with the 'Typst' 'Rust' library to render documents, making it possible to integrate 'Typst'-based workflows into R scripts, reports, and reproducible research pipelines.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
