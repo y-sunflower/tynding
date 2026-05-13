@@ -1,3 +1,4 @@
+mod errors;
 mod fonts;
 mod inputs;
 mod multipage;
@@ -5,6 +6,7 @@ mod output;
 mod standard;
 mod write;
 
+use errors::format_typst_errors;
 use extendr_api::prelude::*;
 use fonts::load_fonts_from_dir;
 use inputs::build_sys_inputs;
@@ -36,22 +38,24 @@ fn compile_paged_document(
     engine: &TypstEngine,
     main_file: &str,
     sys_inputs: &Dict,
+    root: &Path,
 ) -> std::result::Result<PagedDocument, String> {
     engine
         .compile_with_input(main_file, sys_inputs.clone())
         .output
-        .map_err(|err| format!("Typst compilation failed: {err}"))
+        .map_err(|err| format_typst_errors(root, &err))
 }
 
 fn compile_html_document(
     engine: &TypstEngine,
     main_file: &str,
     sys_inputs: &Dict,
+    root: &Path,
 ) -> std::result::Result<HtmlDocument, String> {
     engine
         .compile_with_input(main_file, sys_inputs.clone())
         .output
-        .map_err(|err| format!("Typst compilation failed: {err}"))
+        .map_err(|err| format_typst_errors(root, &err))
 }
 
 /// Compiles a `.typ` Typst file into a supported output format.
@@ -211,22 +215,26 @@ fn compile_file(
 
     match output_format {
         OutputFormat::Pdf => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let doc: PagedDocument =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_pdf(&doc, &output_path, standards)?;
         }
         OutputFormat::Html => {
-            let doc: HtmlDocument = compile_html_document(&engine, &main_file, &sys_inputs)?;
+            let doc: HtmlDocument =
+                compile_html_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_html(&doc, &output_path)?;
         }
         OutputFormat::Png => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let doc: PagedDocument =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             match ppi {
                 Some(ppi) => write_png(&doc, &output_path, ppi)?,
                 None => write_png(&doc, &output_path, &(144.0))?,
             }
         }
         OutputFormat::Svg => {
-            let doc: PagedDocument = compile_paged_document(&engine, &main_file, &sys_inputs)?;
+            let doc: PagedDocument =
+                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
             write_svg(&doc, &output_path)?;
         }
     }

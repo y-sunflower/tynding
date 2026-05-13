@@ -83,9 +83,7 @@ fn format_source_diagnostic(root: &Path, diagnostic: &SourceDiagnostic) -> Strin
 
 fn append_hints(out: &mut String, diagnostic: &SourceDiagnostic) {
     for hint in &diagnostic.hints {
-        if hint.span.is_detached() {
-            let _ = write!(out, "\nhint: {}", hint.v);
-        }
+        let _ = write!(out, "\nhint: {hint}");
     }
 }
 
