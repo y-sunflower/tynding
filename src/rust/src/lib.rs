@@ -275,13 +275,13 @@ fn compile_file(
 #[extendr]
 fn typst_compile_rust(
     file: &str,
-    #[default = "NULL"] output: Nullable<String>,
-    #[default = "NULL"] font_path: Nullable<String>,
-    #[default = "NULL"] pdf_standard: Nullable<String>,
-    #[default = "NULL"] output_format: Nullable<String>,
-    #[default = "NULL"] root: Nullable<String>,
-    #[default = "NULL"] inputs: Nullable<Vec<String>>,
-    #[default = "NULL"] ppi: Nullable<f32>,
+    #[extendr(default = "NULL")] output: Nullable<String>,
+    #[extendr(default = "NULL")] font_path: Nullable<String>,
+    #[extendr(default = "NULL")] pdf_standard: Nullable<String>,
+    #[extendr(default = "NULL")] output_format: Nullable<String>,
+    #[extendr(default = "NULL")] root: Nullable<String>,
+    #[extendr(default = "NULL")] inputs: Nullable<Vec<String>>,
+    #[extendr(default = "NULL")] ppi: Nullable<f32>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();

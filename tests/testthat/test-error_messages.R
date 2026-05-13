@@ -29,12 +29,18 @@ test_that("Type mismatch on set rule produces a rich error message", {
 test_that("Missing import file produces a rich error message", {
   input_file <- test_path("typst", "error-missing-import.typ")
   searched_path <- file.path(
-    normalizePath(test_path("typst")),
+    normalizePath(test_path("typst"), winslash = "/"),
     "does-not-exist.typ"
   )
 
-  expect_error(
-    typst_compile(input_file),
+  error <- expect_error(typst_compile(input_file))
+  error_message <- conditionMessage(error)
+  error_message <- gsub("\r\n", "\n", error_message, fixed = TRUE)
+  error_message <- gsub("\\", "/", error_message, fixed = TRUE)
+  error_message <- gsub("(searched at //?/", "(searched at ", error_message, fixed = TRUE)
+
+  expect_equal(
+    error_message,
     sprintf(
       'error: file not found (searched at %s)
   ┌─ error-missing-import.typ:1:9
@@ -42,8 +48,7 @@ test_that("Missing import file produces a rich error message", {
 1 │ #import "does-not-exist.typ": *
   │         ^^^^^^^^^^^^^^^^^^^^',
       searched_path
-    ),
-    fixed = TRUE
+    )
   )
 })
 
