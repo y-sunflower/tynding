@@ -35,6 +35,9 @@ directory's subtree.}
 
 \item{ppi}{Optional pixels per inch value when exporting to png. If NULL,
 default to 144.0.}
+
+\item{ignore_system_fonts}{Optional bool to indicate whether to ignore system
+fonts.}
 }
 \value{
 Output path

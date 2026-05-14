@@ -26,6 +26,8 @@ NULL
 #' @param inputs Optional additional sys inputs parameters.
 #' @param ppi Optional pixels per inch value when exporting to png. If NULL,
 #'   default to 144.0.
+#' @param ignore_system_fonts Optional bool to indicate whether to ignore system
+#'   fonts.
 #'
 #' @return Output path
 #'
@@ -39,7 +41,7 @@ typst_compile_rust <- function(
   root = NULL,
   inputs = NULL,
   ppi = NULL,
-  ignore_system_fonts=FALSE
+  ignore_system_fonts = FALSE
 ){
   .Call(
     wrap__typst_compile_rust,

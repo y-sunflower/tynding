@@ -19,6 +19,8 @@
 #' `file`. When provided, `file` must be contained in that directory's subtree.
 #' @param ppi Optional pixels per inch value when exporting to png. If NULL,
 #' default to 144.0.
+#' @param ignore_system_fonts Whether to skip system font discovery. Embedded
+#' Typst fonts and fonts from `font_path` are still available.
 #' @param ... Named inputs passed to the Typst document via `sys.inputs`.
 #' Each argument must be named. Scalar values are passed as-is; other values
 #' are JSON-encoded.
@@ -61,8 +63,8 @@ typst_compile <- function(
     pdf_standard = pdf_standard,
     output_format = output_format,
     root = root,
+    inputs = inputs,
     ppi = ppi,
-    ignore_system_fonts = ignore_system_fonts,
-    inputs
+    ignore_system_fonts = ignore_system_fonts
   ))
 }
