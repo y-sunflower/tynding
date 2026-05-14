@@ -6,8 +6,12 @@ rust-version = "1.89"
 publish = false
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["rlib", "staticlib"]
 name = "tynding"
+
+[[bin]]
+name = "document"
+path = "document.rs"
 
 [dependencies]
 extendr-api = { git = "https://github.com/extendr/extendr.git", rev = "2937d4ec1b9529174a920f7a9a019ff6b9d16aa4" }
