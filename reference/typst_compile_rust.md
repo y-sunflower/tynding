@@ -14,7 +14,8 @@ typst_compile_rust(
   output_format = NULL,
   root = NULL,
   inputs = NULL,
-  ppi = NULL
+  ppi = NULL,
+  ignore_system_fonts = FALSE
 )
 ```
 
@@ -54,6 +55,10 @@ typst_compile_rust(
 
   Optional pixels per inch value when exporting to png. If NULL, default
   to 144.0.
+
+- ignore_system_fonts:
+
+  Optional bool to indicate whether to ignore system fonts.
 
 ## Value
 

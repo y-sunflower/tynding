@@ -14,6 +14,7 @@ typst_compile(
   output_format = NULL,
   root = NULL,
   ppi = NULL,
+  ignore_system_fonts = FALSE,
   ...
 )
 ```
@@ -58,6 +59,11 @@ typst_compile(
 
   Optional pixels per inch value when exporting to png. If NULL, default
   to 144.0.
+
+- ignore_system_fonts:
+
+  Whether to skip system font discovery. Embedded Typst fonts and fonts
+  from `font_path` are still available.
 
 - ...:
 
