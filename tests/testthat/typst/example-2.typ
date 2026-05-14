@@ -7,6 +7,7 @@
     #align(right)[
       #text(
         size: 1.2em,
+        font: "Roboto",
       )[My favorite food is cookies!]
     ]
   ]
