@@ -5,15 +5,11 @@ use typst_kit::fonts::{FontSearcher, Fonts};
 
 static DEFAULT_FONTS: OnceLock<Vec<Font>> = OnceLock::new();
 
-pub fn load_fonts(
-    font_path: Option<&str>,
-    ignore_system_fonts: Option<bool>,
-) -> Result<Vec<Font>, String> {
+pub fn load_fonts(font_path: Option<&str>, ignore_system_fonts: bool) -> Result<Vec<Font>, String> {
     let custom_dir: Option<PathBuf> = font_path.map(validate_font_dir).transpose()?;
-    let include_system_fonts: bool = ignore_system_fonts.unwrap_or(false);
 
     let mut fonts: Vec<Font> = custom_dir
-        .map(|dir| search_fonts(vec![dir], include_system_fonts))
+        .map(|dir| search_fonts(vec![dir], ignore_system_fonts))
         .unwrap_or_default();
 
     fonts.extend(DEFAULT_FONTS.get_or_init(default_fonts).clone());

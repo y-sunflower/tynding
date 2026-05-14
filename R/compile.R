@@ -34,6 +34,7 @@ typst_compile <- function(
   output_format = NULL,
   root = NULL,
   ppi = NULL,
+  ignore_system_fonts = FALSE,
   ...
 ) {
   inputs_list <- list(...)
@@ -61,6 +62,7 @@ typst_compile <- function(
     output_format = output_format,
     root = root,
     ppi = ppi,
+    ignore_system_fonts = ignore_system_fonts,
     inputs
   ))
 }

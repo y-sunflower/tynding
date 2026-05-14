@@ -12,6 +12,7 @@ typst_compile(
   output_format = NULL,
   root = NULL,
   ppi = NULL,
+  ignore_system_fonts = FALSE,
   ...
 )
 }

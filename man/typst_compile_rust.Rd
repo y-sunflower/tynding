@@ -12,7 +12,8 @@ typst_compile_rust(
   output_format = NULL,
   root = NULL,
   inputs = NULL,
-  ppi = NULL
+  ppi = NULL,
+  ignore_system_fonts = FALSE
 )
 }
 \arguments{
