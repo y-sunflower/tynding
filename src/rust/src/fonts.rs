@@ -5,11 +5,15 @@ use typst_kit::fonts::{FontSearcher, Fonts};
 
 static DEFAULT_FONTS: OnceLock<Vec<Font>> = OnceLock::new();
 
-pub fn load_fonts(font_path: Option<&str>) -> Result<Vec<Font>, String> {
+pub fn load_fonts(
+    font_path: Option<&str>,
+    ignore_system_fonts: Option<bool>,
+) -> Result<Vec<Font>, String> {
     let custom_dir: Option<PathBuf> = font_path.map(validate_font_dir).transpose()?;
+    let include_system_fonts: bool = ignore_system_fonts.unwrap_or(false);
 
     let mut fonts: Vec<Font> = custom_dir
-        .map(|dir| search_fonts(vec![dir], false, false))
+        .map(|dir| search_fonts(vec![dir], include_system_fonts))
         .unwrap_or_default();
 
     fonts.extend(DEFAULT_FONTS.get_or_init(default_fonts).clone());
@@ -18,18 +22,14 @@ pub fn load_fonts(font_path: Option<&str>) -> Result<Vec<Font>, String> {
 }
 
 fn default_fonts() -> Vec<Font> {
-    search_fonts(vec![], true, true)
+    search_fonts(vec![], true)
 }
 
-fn search_fonts(
-    font_dirs: Vec<PathBuf>,
-    include_system_fonts: bool,
-    include_embedded_fonts: bool,
-) -> Vec<Font> {
+fn search_fonts(font_dirs: Vec<PathBuf>, ignore_system_fonts: bool) -> Vec<Font> {
     let mut searcher = FontSearcher::new();
     searcher
-        .include_system_fonts(include_system_fonts)
-        .include_embedded_fonts(include_embedded_fonts);
+        .include_system_fonts(!ignore_system_fonts)
+        .include_embedded_fonts(true);
 
     let Fonts { fonts, .. } = searcher.search_with(font_dirs);
     fonts.into_iter().filter_map(|slot| slot.get()).collect()

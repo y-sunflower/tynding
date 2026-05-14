@@ -20,8 +20,12 @@ use typst_html::HtmlDocument;
 use typst_pdf::PdfStandards;
 use write::{write_html, write_pdf, write_png, write_svg};
 
-fn build_engine(root: &Path, font_path: Option<&str>) -> std::result::Result<TypstEngine, String> {
-    let fonts = load_fonts(font_path)?;
+fn build_engine(
+    root: &Path,
+    font_path: Option<&str>,
+    ignore_system_fonts: Option<bool>,
+) -> std::result::Result<TypstEngine, String> {
+    let fonts = load_fonts(font_path, ignore_system_fonts)?;
 
     Ok(TypstEngine::builder()
         .with_file_system_resolver(root)
@@ -115,6 +119,7 @@ fn compile_file(
     root: Option<&str>,
     inputs: Option<&[String]>,
     ppi: Option<&f32>,
+    ignore_system_fonts: Option<bool>,
 ) -> std::result::Result<(String, Vec<String>), String> {
     let input_path: &Path = Path::new(file);
     if !input_path.is_file() {
@@ -212,7 +217,7 @@ fn compile_file(
         PdfStandards::default()
     };
 
-    let engine: TypstEngine = build_engine(&root_path, font_path)?;
+    let engine: TypstEngine = build_engine(&root_path, font_path, ignore_system_fonts)?;
     let sys_inputs: Dict = build_sys_inputs(inputs)?;
 
     let warnings = match output_format {
@@ -264,6 +269,8 @@ fn compile_file(
 /// @param inputs Optional additional sys inputs parameters.
 /// @param ppi Optional pixels per inch value when exporting to png. If NULL,
 ///   default to 144.0.
+/// @param ignore_system_fonts Optional bool to indicate whether to ignore system
+///   fonts.
 ///
 /// @return Output path
 ///
@@ -278,6 +285,7 @@ fn typst_compile_rust(
     #[extendr(default = "NULL")] root: Nullable<String>,
     #[extendr(default = "NULL")] inputs: Nullable<Vec<String>>,
     #[extendr(default = "NULL")] ppi: Nullable<f32>,
+    #[extendr(default = "FALSE")] ignore_system_fonts: Option<bool>,
 ) -> String {
     let output: Option<String> = output.into_option();
     let font_path: Option<String> = font_path.into_option();
@@ -296,6 +304,7 @@ fn typst_compile_rust(
         root.as_deref(),
         inputs.as_deref(),
         ppi.as_ref(),
+        ignore_system_fonts,
     ) {
         Ok((output_path, warnings)) => {
             for w in warnings {
@@ -413,6 +422,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("compilation should succeed");
 
@@ -443,6 +453,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("compilation should succeed");
 
@@ -468,8 +479,11 @@ mod tests {
         fs::write(font_dir.join("README.txt"), "not a font")
             .expect("could not write non-font file");
 
-        let fonts = load_fonts(Some(font_dir.to_str().expect("path should be valid UTF-8")))
-            .expect("font loading should succeed");
+        let fonts = load_fonts(
+            Some(font_dir.to_str().expect("path should be valid UTF-8")),
+            Some(true),
+        )
+        .expect("font loading should succeed");
 
         let families: Vec<&str> = fonts
             .iter()
@@ -504,6 +518,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("compilation with custom fonts should succeed");
 
@@ -533,6 +548,7 @@ mod tests {
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
             None,
             None,
+            Some(true),
         )
         .expect("compilation with an explicit project root should succeed");
 
@@ -562,6 +578,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("compilation with a supported PDF standard should succeed");
 
@@ -586,6 +603,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("missing file should return an error");
 
@@ -612,6 +630,7 @@ mod tests {
             Some(root_dir.to_str().expect("path should be valid UTF-8")),
             None,
             None,
+            Some(true),
         )
         .expect_err("input outside the explicit root should return an error");
 
@@ -634,6 +653,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("non-.typ input should return an error");
 
@@ -656,6 +676,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("empty output path should return an error");
 
@@ -678,6 +699,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("empty PDF standard should return an error");
 
@@ -700,6 +722,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("unsupported PDF standard should return an error");
 
@@ -722,6 +745,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("unsupported PDF/UA-2 standard should return an error");
 
@@ -745,6 +769,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("HTML compilation should succeed");
 
@@ -771,6 +796,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("compilation should infer HTML from the output extension");
 
@@ -803,6 +829,7 @@ mod tests {
             None,
             None,
             Some(&200.0),
+            Some(true),
         )
         .expect("PNG compilation should succeed");
 
@@ -836,6 +863,7 @@ mod tests {
             None,
             None,
             Some(&200.0),
+            Some(true),
         );
 
         assert_eq!(
@@ -868,6 +896,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect("SVG compilation should succeed");
 
@@ -901,6 +930,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("multi-page PNG without output template should return an error");
 
@@ -923,6 +953,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("multi-page SVG without output template should return an error");
 
@@ -958,6 +989,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("empty output format should return an error");
 
@@ -984,6 +1016,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("unknown output extension should return an error");
 
@@ -1006,6 +1039,7 @@ mod tests {
             None,
             None,
             None,
+            Some(true),
         )
         .expect_err("pdf_standard should be rejected for non-PDF output");
 
