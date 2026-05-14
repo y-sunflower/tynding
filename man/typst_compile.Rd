@@ -12,6 +12,7 @@ typst_compile(
   output_format = NULL,
   root = NULL,
   ppi = NULL,
+  ignore_system_fonts = FALSE,
   ...
 )
 }
@@ -38,6 +39,9 @@ outputs, \code{output} must be a template path containing at least one of
 
 \item{ppi}{Optional pixels per inch value when exporting to png. If NULL,
 default to 144.0.}
+
+\item{ignore_system_fonts}{Whether to skip system font discovery. Embedded
+Typst fonts and fonts from \code{font_path} are still available.}
 
 \item{...}{Named inputs passed to the Typst document via \code{sys.inputs}.
 Each argument must be named. Scalar values are passed as-is; other values

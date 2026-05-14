@@ -1,33 +1,54 @@
-use std::{
-    fs::{self, DirEntry},
-    path::PathBuf,
-};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use typst::text::Font;
+use typst_kit::fonts::{FontSearcher, Fonts};
 
-pub fn load_fonts_from_dir(path: &str) -> Result<Vec<Vec<u8>>, String> {
-    fs::read_dir(path)
-        .map_err(|e| e.to_string())?
-        .map(|entry| {
-            let entry: DirEntry = entry.map_err(|e| e.to_string())?;
-            let path: PathBuf = entry.path();
+static DEFAULT_FONTS: OnceLock<Vec<Font>> = OnceLock::new();
+static DEFAULT_FONTS_WITHOUT_SYSTEM: OnceLock<Vec<Font>> = OnceLock::new();
 
-            if !path.is_file() {
-                return Ok(None);
-            }
+pub fn load_fonts(font_path: Option<&str>, ignore_system_fonts: bool) -> Result<Vec<Font>, String> {
+    let custom_dir: Option<PathBuf> = font_path.map(validate_font_dir).transpose()?;
 
-            let ext: &str = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-            let is_font: bool = matches!(ext.to_ascii_lowercase().as_str(), "ttf" | "otf" | "ttc");
+    let mut fonts: Vec<Font> = custom_dir
+        .map(|dir| search_fonts(vec![dir], false, false))
+        .unwrap_or_default();
 
-            if !is_font {
-                return Ok(None);
-            }
+    fonts.extend(default_fonts(ignore_system_fonts).clone());
 
-            let bytes: Vec<u8> = fs::read(&path).map_err(|e| e.to_string())?;
-            Ok(Some(bytes))
-        })
-        .filter_map(|r| match r {
-            Ok(Some(bytes)) => Some(Ok(bytes)),
-            Ok(None) => None,
-            Err(e) => Some(Err(e)),
-        })
-        .collect()
+    Ok(fonts)
+}
+
+fn default_fonts(ignore_system_fonts: bool) -> &'static Vec<Font> {
+    if ignore_system_fonts {
+        DEFAULT_FONTS_WITHOUT_SYSTEM.get_or_init(|| search_fonts(vec![], false, true))
+    } else {
+        DEFAULT_FONTS.get_or_init(|| search_fonts(vec![], true, true))
+    }
+}
+
+fn search_fonts(
+    font_dirs: Vec<PathBuf>,
+    include_system_fonts: bool,
+    include_embedded_fonts: bool,
+) -> Vec<Font> {
+    let mut searcher = FontSearcher::new();
+    searcher
+        .include_system_fonts(include_system_fonts)
+        .include_embedded_fonts(include_embedded_fonts);
+
+    let Fonts { fonts, .. } = searcher.search_with(font_dirs);
+    fonts.into_iter().filter_map(|slot| slot.get()).collect()
+}
+
+fn validate_font_dir(path: &str) -> Result<PathBuf, String> {
+    if path.trim().is_empty() {
+        return Err("`font_path` must not be an empty path".to_owned());
+    }
+
+    let path: &Path = Path::new(path);
+    if !path.is_dir() {
+        return Err(format!("Font directory does not exist: {}", path.display()));
+    }
+
+    Ok(path.to_path_buf())
 }

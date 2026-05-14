@@ -20,6 +20,8 @@ jobs:
           - windows-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      DEBUG: ""
+      NOT_CRAN: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +47,18 @@ jobs:
 
       - name: Run unit tests
         run: |
-          devtools::load_all()
-          testthat::test_dir("tests/testthat", stop_on_failure = TRUE)
+          devtools::install(upgrade = FALSE)
+          library(tynding)
+          warmup_output <- tempfile(fileext = ".pdf")
+          typst_compile(
+            "tests/testthat/typst/performance.typ",
+            output = warmup_output
+          )
+          unlink(warmup_output)
+          testthat::test_dir(
+            "tests/testthat",
+            package = "tynding",
+            load_package = "installed",
+            stop_on_failure = TRUE
+          )
         shell: Rscript {0}

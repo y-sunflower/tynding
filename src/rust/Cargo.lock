@@ -2298,13 +2298,13 @@ dependencies = [
 
 [[package]]
 name = "tynding"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "extendr-api",
  "typst",
  "typst-as-lib",
- "typst-assets",
  "typst-html",
+ "typst-kit",
  "typst-pdf",
  "typst-render",
  "typst-svg",
@@ -2393,6 +2393,24 @@ dependencies = [
  "typst-library",
  "typst-macros",
  "typst-svg",
+ "typst-syntax",
+ "typst-timing",
+ "typst-utils",
+]
+
+[[package]]
+name = "typst-kit"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31476ec753e080ffdd543a0e74b6d319355449ff3eca3f216634f31cfd09a92a"
+dependencies = [
+ "ecow",
+ "fontdb",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "typst-assets",
+ "typst-library",
  "typst-syntax",
  "typst-timing",
  "typst-utils",

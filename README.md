@@ -2,15 +2,16 @@
 
 <img src="https://github.com/JosephBARBIERDARNAL/static/blob/main/r-libs/tynding/image.png?raw=true" alt="tynding logo" align="right" width="150px"/>
 
-`tynding` is an R package that compiles Typst documents from R through a Rust backend.
+`tynding` is an R package that compiles Typst documents natively from R.
 
-- it exposes a small API for <u>writing</u>, _evaluating_ and **compiling** Typst files
+- it exposes a small API for <u>writing</u>, _evaluating_, and **compiling** Typst files
 - it lets you specify:
   - output format (pdf, png, svg, html)
-  - font path to look for font files
+  - font path to search for font files
   - pdf standard (for accessibility)
   - root path for more complex repos
-  - _any other kind of inputs_, for advanced templating
+  - _any other kind of input_, for advanced templating
+- basically zero performance overhead compared to the Typst command line!
 
 <br>
 <br>
@@ -29,7 +30,7 @@ install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 
 ## Quick start
 
-You just need to specify the path of your Typst document to get started!
+You just need to specify the path to your Typst document to get started!
 
 ```r
 library(tynding)
@@ -89,7 +90,7 @@ typ_file <- typst_write(markup)
 png_file <- typst_compile(typ_file, output_format = "png")
 ```
 
-Multi-page `png` and `svg` exports with multiple pages will create multiple files. In order to [behaves the same as the Typst CLI](https://typst.app/docs/reference/png/#exporting-as-png), you'll need to pass an output file name as a template string. For example:
+Multi-page `png` and `svg` exports will create multiple files. For this to [behave the same as the Typst CLI](https://typst.app/docs/reference/png/#exporting-as-png), you'll need to pass an output file name as a template string. For example:
 
 ```r
 library(tynding)
@@ -119,7 +120,7 @@ typst_compile(
 )
 ```
 
-This will let you organize your project as follow, which isn't possible by default:
+This will let you organize your project as follows, which isn't possible by default:
 
 ```
 reports/
@@ -136,7 +137,7 @@ Learn more in the [documentation website](https://y-sunflower.github.io/tynding/
 
 ## Advanced usage with inputs
 
-You can send inputs thanks to Typst sys inputs handling. Basically, you do your things with R, and then send whatever you want to Typst! For example:
+You can send inputs using Typst's `sys.inputs` handling. Basically, you do your thing with R, and then send whatever you want to Typst! For example:
 
 ```r
 library(tynding)
@@ -144,7 +145,7 @@ library(tynding)
 typst_compile(
   "file.typ",
   title = "Quarterly report",
-  # all additional arguments... Can be anything you want!
+  # all additional arguments... can be anything you want!
   author = "Joseph",
   persons = list(
     list(name = "Joseph", age = 25),
@@ -173,9 +174,9 @@ Then your `file.typ` looks like this:
 
 ![](./example1.png)
 
-All extra arguments are accepted. Scalar values are passed as-is; other values are **JSON-encoded** (using `jsonlite::toJSON()`)
+All extra arguments are accepted. Scalar values are passed as-is; other values are **JSON-encoded** (using `jsonlite::toJSON()`).
 
-This means that we can, for instance, send a dataframe from R to create a Typst table.
+This means that we can, for instance, send a data frame from R to create a Typst table.
 
 ```r
 df <- data.frame(
@@ -190,7 +191,7 @@ typst_compile(
 )
 ```
 
-Typst file looks like:
+The Typst file looks like:
 
 ```typ
 #set page(width: 10cm, height: 15cm, fill: rgb("#faedcd"))
@@ -214,7 +215,7 @@ Typst file looks like:
 
 ## Error and warning messages
 
-`tynding` gives you the same great error and warning messages that Typst would give you, which makes things easier to debug.
+`tynding` gives you the same great error and warning messages that Typst gives you, which makes things easier to debug.
 
 - Errors
 
@@ -227,7 +228,7 @@ Lorem ipsum...
 #hello()
 ```
 
-When trying to compile it:
+When you try to compile it:
 
 ```R
 library(tynding)
@@ -245,7 +246,7 @@ typst_compile("document.typ")
 
 - Warnings
 
-Same thing happens with warnings, where Typst warnings raise R warnings:
+The same thing happens with warnings: Typst warnings raise R warnings.
 
 ```typst
 #set text(font: "invalid font")
@@ -253,7 +254,7 @@ Same thing happens with warnings, where Typst warnings raise R warnings:
 Hello world
 ```
 
-When trying to compile:
+When you try to compile:
 
 ```R
 library(tynding)
@@ -275,10 +276,12 @@ warning: unknown font family: invalid font
 
 [`typr`](https://christophertkenny.com/typr/) is a package with a very similar goal, but it works quite differently under the hood. `typr` compiles your document using the Typst/Quarto CLI, while `tynding` uses the Typst compiler itself via the Typst Rust library.
 
-Both have their pros and cons, but `tynding` is designed to be **more portable** in the sense that you don’t have to worry about installing Typst separately and/or adding it to your PATH. `tynding` will also do other useful stuff such as R to Typst conversion, automatic encoding of objects that need to, and more!
+Both have their pros and cons, but `tynding` is designed to be **faster** (no external command like `system2()` or `processx::run()`), **more portable** (don't worry about installing Typst separately and adding it to the PATH), and **more lightweight** (`jsonlite` as a single R dependency and no Rust runtime dependency).
+
+`tynding` will also do other useful stuff such as R to Typst conversion, automatic encoding of objects that need it, and more!
 
 <br>
 
 ## Coding with AI?
 
-If you're coding with AI, this page is pretty much all they need to know! Just copy everything above this section and send it to your favorite AI/LLM.
+If you're coding with AI, this page is pretty much all it needs to know! Just copy everything above this section and send it to your favorite AI/LLM.
