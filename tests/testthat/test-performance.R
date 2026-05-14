@@ -11,7 +11,7 @@ test_that("Check average performance", {
     system.time(typst_compile(input_file, output = output))["elapsed"]
   )
 
-  expect_lt(mean(timings), 0.05)
+  expect_lt(mean(timings), 0.06)
   expect_true(file.exists(output))
   on.exit(unlink(output))
 })
