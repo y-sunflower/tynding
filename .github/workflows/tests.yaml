@@ -47,7 +47,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          devtools::install(upgrade = "never")
+          devtools::install(upgrade = FALSE)
           library(tynding)
           warmup_output <- tempfile(fileext = ".pdf")
           typst_compile(
