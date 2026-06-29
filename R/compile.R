@@ -42,9 +42,6 @@ typst_compile <- function(
   ...
 ) {
   if (!is.null(pdf_standard)) {
-    if (!is.character(pdf_standard)) {
-      stop("`pdf_standard` must be a character vector or NULL.", call. = FALSE)
-    }
     pdf_standard <- paste(pdf_standard, collapse = ",")
   }
 
