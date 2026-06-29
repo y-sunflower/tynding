@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use typst::text::Font;
-use typst_kit::fonts::{FontSearcher, Fonts};
+use typst_kit::fonts::{embedded, scan, system, FontSource};
 
 static DEFAULT_FONTS: OnceLock<Vec<Font>> = OnceLock::new();
 static DEFAULT_FONTS_WITHOUT_SYSTEM: OnceLock<Vec<Font>> = OnceLock::new();
@@ -31,13 +31,21 @@ fn search_fonts(
     include_system_fonts: bool,
     include_embedded_fonts: bool,
 ) -> Vec<Font> {
-    let mut searcher = FontSearcher::new();
-    searcher
-        .include_system_fonts(include_system_fonts)
-        .include_embedded_fonts(include_embedded_fonts);
+    let mut fonts: Vec<Font> = font_dirs
+        .iter()
+        .flat_map(|dir| scan(dir))
+        .filter_map(|(source, _)| source.load())
+        .collect();
 
-    let Fonts { fonts, .. } = searcher.search_with(font_dirs);
-    fonts.into_iter().filter_map(|slot| slot.get()).collect()
+    if include_system_fonts {
+        fonts.extend(system().filter_map(|(source, _)| source.load()));
+    }
+
+    if include_embedded_fonts {
+        fonts.extend(embedded().map(|(font, _)| font));
+    }
+
+    fonts
 }
 
 fn validate_font_dir(path: &str) -> Result<PathBuf, String> {

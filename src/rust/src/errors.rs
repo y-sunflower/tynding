@@ -1,39 +1,34 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
-use typst::diag::{HintedString, Severity, SourceDiagnostic};
-use typst::syntax::{FileId, Source};
-use typst_as_lib::TypstAsLibError;
+use typst::diag::{Severity, SourceDiagnostic};
+use typst::syntax::{FileId, VirtualRoot};
+use typst::{World, WorldExt};
 
-pub fn format_typst_errors(root: &Path, err: &TypstAsLibError) -> String {
-    match err {
-        TypstAsLibError::TypstSource(errors) => errors
-            .iter()
-            .map(|diag| format_source_diagnostic(root, diag))
-            .collect::<Vec<_>>()
-            .join("\n\n"),
-        TypstAsLibError::HintedString(hinted) => format_hinted_string(hinted),
-        TypstAsLibError::TypstFile(file_error) => format!("error: {file_error}"),
-        other => format!("error: {other}"),
-    }
+pub fn format_typst_errors(world: &dyn World, root: &Path, errors: &[SourceDiagnostic]) -> String {
+    errors
+        .iter()
+        .map(|diag| format_source_diagnostic(world, root, diag))
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
-pub fn format_typst_warnings(root: &Path, warnings: &[SourceDiagnostic]) -> Vec<String> {
+pub fn format_typst_warnings(
+    world: &dyn World,
+    root: &Path,
+    warnings: &[SourceDiagnostic],
+) -> Vec<String> {
     warnings
         .iter()
-        .map(|d| format_source_diagnostic(root, d))
+        .map(|d| format_source_diagnostic(world, root, d))
         .collect()
 }
 
-fn format_hinted_string(hinted: &HintedString) -> String {
-    let mut out = format!("error: {}", hinted.message());
-    for hint in hinted.hints() {
-        let _ = write!(out, "\nhint: {hint}");
-    }
-    out
-}
-
-fn format_source_diagnostic(root: &Path, diagnostic: &SourceDiagnostic) -> String {
+fn format_source_diagnostic(
+    world: &dyn World,
+    root: &Path,
+    diagnostic: &SourceDiagnostic,
+) -> String {
     let mut out = format!(
         "{}: {}",
         severity_label(diagnostic.severity),
@@ -45,12 +40,12 @@ fn format_source_diagnostic(root: &Path, diagnostic: &SourceDiagnostic) -> Strin
         return out;
     };
 
-    let Ok(source) = load_source(root, file_id) else {
+    let Ok(source) = world.source(file_id) else {
         append_hints(&mut out, diagnostic);
         return out;
     };
 
-    let Some(range) = source.range(diagnostic.span) else {
+    let Some(range) = world.range(diagnostic.span) else {
         append_hints(&mut out, diagnostic);
         return out;
     };
@@ -77,7 +72,7 @@ fn format_source_diagnostic(root: &Path, diagnostic: &SourceDiagnostic) -> Strin
     let _ = write!(
         out,
         "\n  ┌─ {}:{}:{}\n  │\n{line_no:>gutter$} │ {line_text}\n  │ {}{}",
-        display_file_id(file_id),
+        display_file_id(root, file_id),
         line_no,
         col_idx + 1,
         " ".repeat(col_idx),
@@ -90,27 +85,25 @@ fn format_source_diagnostic(root: &Path, diagnostic: &SourceDiagnostic) -> Strin
 
 fn append_hints(out: &mut String, diagnostic: &SourceDiagnostic) {
     for hint in &diagnostic.hints {
-        let _ = write!(out, "\nhint: {hint}");
+        let _ = write!(out, "\nhint: {}", hint.v);
     }
 }
 
-fn load_source(root: &Path, file_id: FileId) -> Result<Source, String> {
-    let path = match file_id.package() {
-        None => file_id.vpath().resolve(root),
-        Some(_) => None,
-    }
-    .ok_or_else(|| "could not resolve source path".to_string())?;
-
-    let text = std::fs::read_to_string(&path)
-        .map_err(|err| format!("could not read {}: {err}", path.display()))?;
-
-    Ok(Source::new(file_id, text))
-}
-
-fn display_file_id(file_id: FileId) -> String {
-    match file_id.package() {
-        None => file_id.vpath().as_rootless_path().display().to_string(),
-        Some(package) => format!("{package}{}", file_id.vpath().as_rooted_path().display()),
+fn display_file_id(root: &Path, file_id: FileId) -> String {
+    match file_id.root() {
+        VirtualRoot::Project => file_id
+            .vpath()
+            .realize(root)
+            .ok()
+            .and_then(|path| {
+                path.strip_prefix(root)
+                    .ok()
+                    .map(|path| path.display().to_string())
+            })
+            .unwrap_or_else(|| file_id.vpath().get_without_slash().to_owned()),
+        VirtualRoot::Package(package) => {
+            format!("{package}{}", file_id.vpath().get_with_slash())
+        }
     }
 }
 

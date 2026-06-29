@@ -2,7 +2,7 @@
 name = "tynding"
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.89"
+rust-version = "1.92"
 publish = false
 
 [lib]
@@ -14,14 +14,24 @@ name = "document"
 path = "document.rs"
 
 [dependencies]
+comemo = "0.5.1"
 extendr-api = {
   git = "https://github.com/extendr/extendr.git",
   rev = "baa377e073d19a3105d36533ab6c5f0c225bf420"
 }
 typst = "0.15.0"
-typst-as-lib = { version = "0.15.5", features = ["typst-html"] }
 typst-html = "0.15.0"
-typst-kit = { version = "0.15.0", default-features = false }
+typst-kit = {
+  version = "0.15.0",
+  features = [
+    "datetime",
+    "embedded-fonts",
+    "scan-fonts",
+    "system-files",
+    "system-downloader",
+    "system-packages"
+  ]
+}
 typst-layout = "0.15.0"
 typst-pdf = "0.15.0"
 typst-render = "0.15.0"
