@@ -14,9 +14,9 @@ use output::{infer_output_format, OutputFormat};
 use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
 use typst::foundations::Dict;
-use typst::layout::PagedDocument;
 use typst_as_lib::TypstEngine;
 use typst_html::HtmlDocument;
+use typst_layout::PagedDocument;
 use typst_pdf::PdfStandards;
 use write::{write_html, write_pdf, write_png, write_svg};
 

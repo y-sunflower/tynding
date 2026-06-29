@@ -2,8 +2,8 @@ use crate::multipage::{render_page_template_path, validate_multipage_template};
 use crate::output::OutputFormat;
 
 use std::path::{Path, PathBuf};
-use typst::layout::PagedDocument;
 use typst_html::HtmlDocument;
+use typst_layout::PagedDocument;
 use typst_pdf::{PdfOptions, PdfStandards};
 
 pub fn write_pdf(

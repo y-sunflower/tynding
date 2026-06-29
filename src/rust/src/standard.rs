@@ -29,5 +29,5 @@ pub fn parse_pdf_standards(value: &str) -> std::result::Result<PdfStandards, Str
         list.push(standard);
     }
 
-    PdfStandards::new(&list).map_err(|err| format!("Invalid PDF standard combination: {err}"))
+    PdfStandards::new(&list).map_err(|err| format!("Invalid PDF standard combination: {err:?}"))
 }

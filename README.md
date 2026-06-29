@@ -23,7 +23,7 @@ install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
 
 > [!NOTE]
-> `tynding` uses Typst 0.14.2, and the plan is to keep it as close as possible to the latest upstream version.
+> `tynding` uses Typst 0.15.0, and the plan is to keep it as close as possible to the latest upstream version.
 
 <br>
 <br>
