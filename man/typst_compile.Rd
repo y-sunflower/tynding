@@ -24,9 +24,11 @@ extension implied by the output format.}
 
 \item{font_path}{Optional path to font files.}
 
-\item{pdf_standard}{Optional PDF standard specification. Options are: : \code{1.4},
-\code{1.5}, \code{1.6}, \code{1.7}, \code{2.0}, \verb{a-1b}, \verb{a-1a}, \verb{a-2b}, \verb{a-2u}, \verb{a-2a}, \verb{a-3b},
-\verb{a-3u}, \verb{a-3a}, \code{a-4}, \verb{a-4f}, \verb{a-4e}, \code{ua-1}. Only used for PDF output.}
+\item{pdf_standard}{Optional PDF standard specification. Can be a single
+standard or a character vector of compatible standards. Options are: \code{1.4},
+\code{1.5}, \code{1.6}, \code{1.7}, \code{2.0}, \verb{a-1b}, \verb{a-1a}, \verb{a-2b}, \verb{a-2u}, \verb{a-2a},
+\verb{a-3b}, \verb{a-3u}, \verb{a-3a}, \code{a-4}, \verb{a-4f}, \verb{a-4e}, \code{ua-1}. Only used for PDF
+output.}
 
 \item{output_format}{Optional output format. Supported values are \code{pdf},
 \code{html}, \code{png}, and \code{svg}. Defaults to \code{NULL}, which means "infer from

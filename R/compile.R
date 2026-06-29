@@ -7,9 +7,11 @@
 #' @param output Optional output path. Defaults to the input path with the
 #' extension implied by the output format.
 #' @param font_path Optional path to font files.
-#' @param pdf_standard Optional PDF standard specification. Options are: : `1.4`,
-#' `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
-#' `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF output.
+#' @param pdf_standard Optional PDF standard specification. Can be a single
+#' standard or a character vector of compatible standards. Options are: `1.4`,
+#' `1.5`, `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`,
+#' `a-3b`, `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF
+#' output.
 #' @param output_format Optional output format. Supported values are `pdf`,
 #' `html`, `png`, and `svg`. Defaults to `NULL`, which means "infer from
 #' `output` when possible, otherwise use `pdf`". For multi-page `png` and `svg`
@@ -39,6 +41,13 @@ typst_compile <- function(
   ignore_system_fonts = FALSE,
   ...
 ) {
+  if (!is.null(pdf_standard)) {
+    if (!is.character(pdf_standard)) {
+      stop("`pdf_standard` must be a character vector or NULL.", call. = FALSE)
+    }
+    pdf_standard <- paste(pdf_standard, collapse = ",")
+  }
+
   inputs_list <- list(...)
 
   inputs <- vapply(

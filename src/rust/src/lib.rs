@@ -553,6 +553,36 @@ mod tests {
     }
 
     #[test]
+    fn compile_succeeds_with_multiple_pdf_standards() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("pdf-standards.typ");
+        let expected_pdf: PathBuf = dir.join("pdf-standards.pdf");
+        write_typ_file(
+            &typ_path,
+            "#set document(title: \"PDF standards test\", date: datetime(year: 2024, month: 1, day: 1))\n= Hello from PDF standards test",
+        );
+
+        let (output, _warnings): (String, Vec<String>) = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("a-2b,ua-1"),
+            None,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect("compilation with multiple supported PDF standards should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_pdf);
+        assert!(expected_pdf.exists(), "expected PDF output to exist");
+        assert_is_pdf(&expected_pdf);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
     fn compile_fails_for_missing_input_file() {
         let dir: PathBuf = unique_temp_dir();
         let missing: PathBuf = dir.join("missing.typ");
@@ -690,6 +720,29 @@ mod tests {
         .expect_err("unsupported PDF standard should return an error");
 
         assert!(err.contains("Unsupported PDF standard: bogus-standard"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_incompatible_pdf_standards() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Incompatible PDF standards");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("a-2b,a-3b"),
+            None,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect_err("incompatible PDF standards should return an error");
+
+        assert!(err.contains("choose at most one PDF/A standard"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 
