@@ -36,16 +36,22 @@ fn format_source_diagnostic(
     );
 
     let Some(file_id) = diagnostic.span.id() else {
+        // Some diagnostics are not tied to a source span, for example errors
+        // raised while resolving packages or validating document-level options.
         append_hints(&mut out, diagnostic);
         return out;
     };
 
     let Ok(source) = world.source(file_id) else {
+        // If the source can no longer be read, keep the primary Typst message
+        // instead of replacing it with an internal formatting failure.
         append_hints(&mut out, diagnostic);
         return out;
     };
 
     let Some(range) = world.range(diagnostic.span) else {
+        // Typst can emit synthetic spans that do not map cleanly back to a byte
+        // range. The message and hints are still useful to R callers.
         append_hints(&mut out, diagnostic);
         return out;
     };
@@ -91,6 +97,8 @@ fn append_hints(out: &mut String, diagnostic: &SourceDiagnostic) {
 
 fn display_file_id(root: &Path, file_id: FileId) -> String {
     match file_id.root() {
+        // Project files are shown relative to the user-selected root so errors
+        // are stable and readable even when the temp directory changes.
         VirtualRoot::Project => file_id
             .vpath()
             .realize(root)
@@ -102,6 +110,8 @@ fn display_file_id(root: &Path, file_id: FileId) -> String {
             })
             .unwrap_or_else(|| file_id.vpath().get_without_slash().to_owned()),
         VirtualRoot::Package(package) => {
+            // Package files do not live under the project root, so keep Typst's
+            // package identity in the display path.
             format!("{package}{}", file_id.vpath().get_with_slash())
         }
     }

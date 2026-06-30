@@ -129,6 +129,8 @@ fn compile_file(
     };
 
     canonical_input_path.strip_prefix(&root_path).map_err(|_| {
+        // Typst treats the project root as a sandbox for absolute project
+        // imports. Enforce the same boundary before building the World.
         format!(
             "Input file must be contained in the root directory: {} (root: {})",
             input_path.display(),

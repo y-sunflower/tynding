@@ -9,6 +9,8 @@ static DEFAULT_FONTS_WITHOUT_SYSTEM: OnceLock<Vec<Font>> = OnceLock::new();
 pub fn load_fonts(font_path: Option<&str>, ignore_system_fonts: bool) -> Result<Vec<Font>, String> {
     let custom_dir: Option<PathBuf> = font_path.map(validate_font_dir).transpose()?;
 
+    // Custom fonts are prepended so Typst's font matching sees package/user
+    // supplied fonts before the broader system and embedded font set.
     let mut fonts: Vec<Font> = custom_dir
         .map(|dir| search_fonts(vec![dir], false, false))
         .unwrap_or_default();
@@ -19,6 +21,9 @@ pub fn load_fonts(font_path: Option<&str>, ignore_system_fonts: bool) -> Result<
 }
 
 fn default_fonts(ignore_system_fonts: bool) -> &'static Vec<Font> {
+    // Scanning system fonts can be expensive, especially when R users compile
+    // many documents in one session. Keep separate caches because
+    // `ignore_system_fonts = TRUE` must be reproducible across machines.
     if ignore_system_fonts {
         DEFAULT_FONTS_WITHOUT_SYSTEM.get_or_init(|| search_fonts(vec![], false, true))
     } else {
@@ -31,6 +36,8 @@ fn search_fonts(
     include_system_fonts: bool,
     include_embedded_fonts: bool,
 ) -> Vec<Font> {
+    // typst-kit returns fallible font sources. Unloadable files are skipped to
+    // match Typst CLI behavior and to tolerate non-font files in user folders.
     let mut fonts: Vec<Font> = font_dirs
         .iter()
         .flat_map(|dir| scan(dir))

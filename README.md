@@ -2,10 +2,9 @@
 
 <img src="https://github.com/JosephBARBIERDARNAL/static/blob/main/r-libs/tynding/image.png?raw=true" alt="tynding logo" align="right" width="150px"/>
 
-`tynding` is an R package that compiles Typst documents natively from R.
+`tynding` is an R package that compiles Typst documents **natively** from R.
 
-- it exposes a small API for <u>writing</u>, _evaluating_, and **compiling** Typst files
-- it lets you specify:
+It exposes a small API for <u>writing</u> and **compiling** Typst files and lets you specify:
   - output format (pdf, png, svg, html)
   - font path to search for font files
   - pdf standard (for accessibility)
@@ -71,7 +70,17 @@ typ_file <- typst_write(markup)
 pdf_file <- typst_compile(typ_file, pdf_standard = "ua-1")
 ```
 
-For `ua-1`, your document needs a title. Unsupported or invalid standards raise an error.
+Unsupported or invalid standards raise an error. Since Typst 0.15.0, you can export to multiple PDF standards at once when they are compatible:
+
+```r
+markup <- c(
+  '#set document(title: "accessible PDF")',
+  "= hello world"
+)
+
+typ_file <- typst_write(markup)
+pdf_file <- typst_compile(typ_file, pdf_standard = c("a-2b", "ua-1"))
+```
 
 <br>
 

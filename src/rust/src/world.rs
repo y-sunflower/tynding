@@ -16,6 +16,9 @@ use typst_kit::packages::SystemPackages;
 use typst_layout::PagedDocument;
 
 pub struct TyndingWorld {
+    // Typst asks its World for all ambient state during compilation: the
+    // standard library, fonts, files, the main source id, and date/time.
+    // Keeping that state here makes the R-facing compiler call self-contained.
     library: LazyHash<Library>,
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
@@ -41,6 +44,9 @@ impl TyndingWorld {
             .with_features(Features::from_iter([Feature::Html]))
             .with_inputs(inputs)
             .build();
+        // Typst stores source identities as virtual project paths, not raw file
+        // system paths. Virtualizing here lets imports such as `/figures/a.typ`
+        // resolve against `root` while still rejecting main files outside it.
         let vpath = VirtualPath::virtualize(root, input).map_err(|err| {
             format!(
                 "Could not virtualize input path {} relative to root {}: {err}",
@@ -49,6 +55,8 @@ impl TyndingWorld {
             )
         })?;
         let main = RootedPath::new(VirtualRoot::Project, vpath).intern();
+        // Package downloads are delegated to typst-kit so this World behaves
+        // like the Typst CLI for package-backed imports.
         let downloader = SystemDownloader::new("tynding");
         let packages = SystemPackages::new(downloader);
         let files = FileStore::new(SystemFiles::new(FsRoot::new(root.to_path_buf()), packages));
@@ -69,6 +77,9 @@ fn build_font_book(
     font_path: Option<&str>,
     ignore_system_fonts: bool,
 ) -> LazyHash<FontBook> {
+    // FontBook construction walks all loaded font metadata. Cache the default
+    // books because they are shared across calls, but rebuild when a custom
+    // `font_path` is supplied so that request-specific fonts are visible.
     if font_path.is_some() {
         return LazyHash::new(FontBook::from_fonts(fonts));
     }
@@ -138,6 +149,9 @@ where
     T: typst::foundations::Output,
 {
     let Warned { output, warnings }: Warned<SourceResult<T>> = typst::compile(world);
+    // Typst memoizes compilation queries globally through comemo. The R package
+    // creates short-lived worlds, so clear the cache after each compile to avoid
+    // retaining sources and fonts from prior calls in a long-running R session.
     comemo::evict(0);
     output.map(|document| (document, warnings.into_iter().collect()))
 }

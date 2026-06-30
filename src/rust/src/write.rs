@@ -42,6 +42,9 @@ pub fn write_png(
     ppi: &f32,
 ) -> std::result::Result<(), String> {
     let total_pages: usize = document.pages().len();
+    // Unlike PDF and HTML, PNG has no natural multi-page container. Require a
+    // filename template for multi-page documents so pages cannot overwrite each
+    // other accidentally.
     validate_multipage_template(output_path, total_pages, OutputFormat::Png)?;
 
     for (index, page) in document.pages().iter().enumerate() {
@@ -52,6 +55,8 @@ pub fn write_png(
             output_path.to_path_buf()
         };
         let options = RenderOptions {
+            // Typst measures pages in points. Convert user-facing PPI to pixels
+            // per point so 72 PPI maps one Typst point to one output pixel.
             pixel_per_pt: Scalar::new(f64::from(*ppi) / 72.0),
             render_bleed: false,
         };
@@ -73,6 +78,8 @@ pub fn write_png(
 
 pub fn write_svg(document: &PagedDocument, output_path: &Path) -> std::result::Result<(), String> {
     let total_pages: usize = document.pages().len();
+    // SVG exports are one file per page, so multi-page documents need the same
+    // template protection as PNG output.
     validate_multipage_template(output_path, total_pages, OutputFormat::Svg)?;
     let options = SvgOptions {
         pretty: false,
