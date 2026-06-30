@@ -1,7 +1,12 @@
 TARGET_DIR = ./rust/target
 LIBDIR = $(TARGET_DIR)/@LIBDIR@
 STATLIB = $(LIBDIR)/libtynding.a
-PKG_LIBS = -L$(LIBDIR) -ltynding -lssl -lcrypto
+PKG_LIBS = -L$(LIBDIR) -ltynding
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+PKG_LIBS += -lssl -lcrypto
+endif
 
 all: $(SHLIB) rust_clean
 
