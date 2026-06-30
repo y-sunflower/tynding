@@ -19,6 +19,7 @@ extendr-api = {
   git = "https://github.com/extendr/extendr.git",
   rev = "baa377e073d19a3105d36533ab6c5f0c225bf420"
 }
+openssl-sys = { version = "0.9", features = ["vendored"] }
 typst = "0.15.0"
 typst-html = "0.15.0"
 typst-kit = {
@@ -27,8 +28,8 @@ typst-kit = {
     "datetime",
     "embedded-fonts",
     "scan-fonts",
-    "system-files",
     "system-downloader",
+    "system-files",
     "system-packages"
   ]
 }
