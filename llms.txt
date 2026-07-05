@@ -3,18 +3,15 @@
 ![tynding
 logo](https://github.com/JosephBARBIERDARNAL/static/blob/main/r-libs/tynding/image.png?raw=true)
 
-`tynding` is an R package that compiles Typst documents natively from R.
+`tynding` is an R package that compiles Typst documents **natively**
+from R.
 
-- it exposes a small API for *writing*, *evaluating*, and **compiling**
-  Typst files
-- it lets you specify:
-  - output format (pdf, png, svg, html)
-  - font path to search for font files
-  - pdf standard (for accessibility)
-  - root path for more complex repos
-  - *any other kind of input*, for advanced templating
-- basically zero performance overhead compared to the Typst command
-  line!
+It exposes a small API for *writing* and **compiling** Typst files and
+lets you specify: - output format (pdf, png, svg, html) - font path to
+search for font files - pdf standard (for accessibility) - root path for
+more complex repos - *any other kind of input*, for advanced
+templating - basically zero performance overhead compared to the Typst
+command line!
 
   
   
@@ -26,7 +23,7 @@ logo](https://github.com/JosephBARBIERDARNAL/static/blob/main/r-libs/tynding/ima
 install.packages("tynding", repos = c("https://y-sunflower.r-universe.dev"))
 ```
 
-> \[!NOTE\] `tynding` uses Typst 0.14.2, and the plan is to keep it as
+> \[!NOTE\] `tynding` uses Typst 0.15.0, and the plan is to keep it as
 > close as possible to the latest upstream version.
 
   
@@ -80,8 +77,19 @@ typ_file <- typst_write(markup)
 pdf_file <- typst_compile(typ_file, pdf_standard = "ua-1")
 ```
 
-For `ua-1`, your document needs a title. Unsupported or invalid
-standards raise an error.
+Unsupported or invalid standards raise an error. Since Typst 0.15.0, you
+can export to multiple PDF standards at once when they are compatible:
+
+``` r
+
+markup <- c(
+  '#set document(title: "accessible PDF")',
+  "= hello world"
+)
+
+typ_file <- typst_write(markup)
+pdf_file <- typst_compile(typ_file, pdf_standard = c("a-2b", "ua-1"))
+```
 
   
 

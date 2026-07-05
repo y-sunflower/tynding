@@ -36,7 +36,8 @@ typst_compile(
 
 - pdf_standard:
 
-  Optional PDF standard specification. Options are: : `1.4`, `1.5`,
+  Optional PDF standard specification. Can be a single standard or a
+  character vector of compatible standards. Options are: `1.4`, `1.5`,
   `1.6`, `1.7`, `2.0`, `a-1b`, `a-1a`, `a-2b`, `a-2u`, `a-2a`, `a-3b`,
   `a-3u`, `a-3a`, `a-4`, `a-4f`, `a-4e`, `ua-1`. Only used for PDF
   output.
