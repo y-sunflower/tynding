@@ -4,71 +4,28 @@ mod inputs;
 mod multipage;
 mod output;
 mod standard;
+mod world;
 mod write;
 
 use errors::{format_typst_errors, format_typst_warnings};
 use extendr_api::prelude::*;
+#[cfg(test)]
 use fonts::load_fonts;
 use inputs::build_sys_inputs;
 use output::{infer_output_format, OutputFormat};
 use standard::parse_pdf_standards;
 use std::path::{Path, PathBuf};
 use typst::foundations::Dict;
-use typst::layout::PagedDocument;
-use typst_as_lib::TypstEngine;
-use typst_html::HtmlDocument;
 use typst_pdf::PdfStandards;
+use world::{compile_html_document, compile_paged_document, TyndingWorld};
 use write::{write_html, write_pdf, write_png, write_svg};
-
-fn build_engine(
-    root: &Path,
-    font_path: Option<&str>,
-    ignore_system_fonts: bool,
-) -> std::result::Result<TypstEngine, String> {
-    let fonts = load_fonts(font_path, ignore_system_fonts)?;
-
-    Ok(TypstEngine::builder()
-        .with_file_system_resolver(root)
-        .fonts(fonts)
-        .build())
-}
-
-fn compile_paged_document(
-    engine: &TypstEngine,
-    main_file: &str,
-    sys_inputs: &Dict,
-    root: &Path,
-) -> std::result::Result<(PagedDocument, Vec<String>), String> {
-    let warned = engine.compile_with_input(main_file, sys_inputs.clone());
-    let warnings = format_typst_warnings(root, &warned.warnings);
-
-    warned
-        .output
-        .map(|doc| (doc, warnings))
-        .map_err(|err| format_typst_errors(root, &err))
-}
-
-fn compile_html_document(
-    engine: &TypstEngine,
-    main_file: &str,
-    sys_inputs: &Dict,
-    root: &Path,
-) -> std::result::Result<(HtmlDocument, Vec<String>), String> {
-    let warned = engine.compile_with_input(main_file, sys_inputs.clone());
-    let warnings = format_typst_warnings(root, &warned.warnings);
-
-    warned
-        .output
-        .map(|doc| (doc, warnings))
-        .map_err(|err| format_typst_errors(root, &err))
-}
 
 /// Compiles a `.typ` Typst file into a supported output format.
 ///
-/// The function loads the specified Typst file, compiles it using a `TypstEngine`,
-/// and writes the resulting output to disk. System fonts are searched by default,
-/// and fonts can optionally be loaded from a custom directory. PDF output can
-/// additionally enforce a specific PDF standard.
+/// The function loads the specified Typst file, compiles it using a local Typst
+/// world, and writes the resulting output to disk. System fonts are searched by
+/// default, and fonts can optionally be loaded from a custom directory. PDF
+/// output can additionally enforce a specific PDF standard.
 ///
 /// # Arguments
 ///
@@ -171,17 +128,15 @@ fn compile_file(
             .to_path_buf(),
     };
 
-    let main_file: String = canonical_input_path
-        .strip_prefix(&root_path)
-        .map_err(|_| {
-            format!(
-                "Input file must be contained in the root directory: {} (root: {})",
-                input_path.display(),
-                root_path.display()
-            )
-        })?
-        .to_string_lossy()
-        .into_owned();
+    canonical_input_path.strip_prefix(&root_path).map_err(|_| {
+        // Typst treats the project root as a sandbox for absolute project
+        // imports. Enforce the same boundary before building the World.
+        format!(
+            "Input file must be contained in the root directory: {} (root: {})",
+            input_path.display(),
+            root_path.display()
+        )
+    })?;
 
     let explicit_output_path: Option<PathBuf> = match output {
         Some(path) if path.trim().is_empty() => {
@@ -217,25 +172,34 @@ fn compile_file(
         PdfStandards::default()
     };
 
-    let engine: TypstEngine = build_engine(&root_path, font_path, ignore_system_fonts)?;
     let sys_inputs: Dict = build_sys_inputs(inputs)?;
+    let world = TyndingWorld::new(
+        &root_path,
+        &canonical_input_path,
+        font_path,
+        ignore_system_fonts,
+        sys_inputs,
+    )?;
 
     let warnings = match output_format {
         OutputFormat::Pdf => {
-            let (doc, warnings) =
-                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
+            let (doc, diagnostics) = compile_paged_document(&world)
+                .map_err(|err| format_typst_errors(&world, &root_path, &err))?;
+            let warnings = format_typst_warnings(&world, &root_path, &diagnostics);
             write_pdf(&doc, &output_path, standards)?;
             warnings
         }
         OutputFormat::Html => {
-            let (doc, warnings) =
-                compile_html_document(&engine, &main_file, &sys_inputs, &root_path)?;
+            let (doc, diagnostics) = compile_html_document(&world)
+                .map_err(|err| format_typst_errors(&world, &root_path, &err))?;
+            let warnings = format_typst_warnings(&world, &root_path, &diagnostics);
             write_html(&doc, &output_path)?;
             warnings
         }
         OutputFormat::Png => {
-            let (doc, warnings) =
-                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
+            let (doc, diagnostics) = compile_paged_document(&world)
+                .map_err(|err| format_typst_errors(&world, &root_path, &err))?;
+            let warnings = format_typst_warnings(&world, &root_path, &diagnostics);
             match ppi {
                 Some(ppi) => write_png(&doc, &output_path, ppi)?,
                 None => write_png(&doc, &output_path, &(144.0))?,
@@ -243,8 +207,9 @@ fn compile_file(
             warnings
         }
         OutputFormat::Svg => {
-            let (doc, warnings) =
-                compile_paged_document(&engine, &main_file, &sys_inputs, &root_path)?;
+            let (doc, diagnostics) = compile_paged_document(&world)
+                .map_err(|err| format_typst_errors(&world, &root_path, &err))?;
+            let warnings = format_typst_warnings(&world, &root_path, &diagnostics);
             write_svg(&doc, &output_path)?;
             warnings
         }
@@ -590,6 +555,36 @@ mod tests {
     }
 
     #[test]
+    fn compile_succeeds_with_multiple_pdf_standards() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("pdf-standards.typ");
+        let expected_pdf: PathBuf = dir.join("pdf-standards.pdf");
+        write_typ_file(
+            &typ_path,
+            "#set document(title: \"PDF standards test\", date: datetime(year: 2024, month: 1, day: 1))\n= Hello from PDF standards test",
+        );
+
+        let (output, _warnings): (String, Vec<String>) = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("a-2b,ua-1"),
+            None,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect("compilation with multiple supported PDF standards should succeed");
+
+        assert_eq!(PathBuf::from(output), expected_pdf);
+        assert!(expected_pdf.exists(), "expected PDF output to exist");
+        assert_is_pdf(&expected_pdf);
+
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
     fn compile_fails_for_missing_input_file() {
         let dir: PathBuf = unique_temp_dir();
         let missing: PathBuf = dir.join("missing.typ");
@@ -727,6 +722,29 @@ mod tests {
         .expect_err("unsupported PDF standard should return an error");
 
         assert!(err.contains("Unsupported PDF standard: bogus-standard"));
+        fs::remove_dir_all(dir).expect("could not remove temp directory");
+    }
+
+    #[test]
+    fn compile_fails_for_incompatible_pdf_standards() {
+        let dir: PathBuf = unique_temp_dir();
+        let typ_path: PathBuf = dir.join("source.typ");
+        write_typ_file(&typ_path, "= Incompatible PDF standards");
+
+        let err: String = compile_file(
+            typ_path.to_str().expect("path should be valid UTF-8"),
+            None,
+            None,
+            Some("a-2b,a-3b"),
+            None,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect_err("incompatible PDF standards should return an error");
+
+        assert!(err.contains("choose at most one PDF/A standard"));
         fs::remove_dir_all(dir).expect("could not remove temp directory");
     }
 

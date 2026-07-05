@@ -2,6 +2,8 @@ use crate::output::OutputFormat;
 use std::path::{Path, PathBuf};
 
 pub fn render_page_template_path(template: &Path, page: usize, total_pages: usize) -> PathBuf {
+    // `{0p}` pads to the width of the total page count, so page 3 of 120 becomes
+    // `003`. That keeps generated page files sorted lexicographically.
     let width: usize = total_pages.to_string().len();
     let rendered: String = template
         .to_string_lossy()
@@ -17,6 +19,8 @@ pub fn validate_multipage_template(
     format: OutputFormat,
 ) -> std::result::Result<(), String> {
     if total_pages <= 1 {
+        // Single-page output can use an ordinary filename because nothing else
+        // will be written alongside it.
         return Ok(());
     }
 

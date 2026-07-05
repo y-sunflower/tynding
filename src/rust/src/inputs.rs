@@ -19,6 +19,9 @@ pub fn build_sys_inputs(raw_inputs: Option<&[String]>) -> std::result::Result<Di
     if let Some(raw_inputs) = raw_inputs {
         for raw in raw_inputs {
             let (key, value) = parse_sys_input_pair(raw)?;
+            // sys inputs arrive from R as `key=value` strings. Keep values as
+            // Typst strings rather than parsing arbitrary Typst expressions so
+            // the R API remains predictable and side-effect free.
             inputs.insert(key.as_str().into(), value.into_value());
         }
     }

@@ -16,6 +16,20 @@ test_that("Valid Typst compile usage", {
   typst_compile(typ_file, output = pdf_file)
   expect_true(file.exists(pdf_file))
 
+  multi_standard_typ_file <- typst_write(c(
+    '#set document(title: "Multi-standard PDF", date: datetime(year: 2024, month: 1, day: 1))',
+    "= Hello World"
+  ))
+  generated_files <- c(generated_files, multi_standard_typ_file)
+  multi_standard_pdf_file <- tempfile(fileext = ".pdf")
+  generated_files <- c(generated_files, multi_standard_pdf_file)
+  typst_compile(
+    multi_standard_typ_file,
+    output = multi_standard_pdf_file,
+    pdf_standard = c("a-2b", "ua-1")
+  )
+  expect_true(file.exists(multi_standard_pdf_file))
+
   expect_warning(
     html_file <- typst_compile(typ_file, output_format = "html"),
     regexp = "html export is under active development and incomplete"
@@ -109,5 +123,13 @@ test_that("Invalid Typst CLI usage", {
       output_format = "html"
     ),
     regexp = "`pdf_standard` is only supported when `output_format` is `pdf`"
+  )
+
+  expect_error(
+    typst_compile(
+      typ_file,
+      pdf_standard = c("a-2b", "a-3b")
+    ),
+    regexp = "choose at most one PDF/A standard"
   )
 })

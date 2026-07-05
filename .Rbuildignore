@@ -16,10 +16,10 @@ dev.R
 ^_pkgdown\.yaml$
 ^pkgdown$
 ^LICENSE\.md$
+^AGENTS\.md$
 ^vignettes/\.quarto$
 ^vignettes/*_files$
 ^dev/*
-^tests/testthat/fonts/*
 ^tynding_
 ^data_internals/
 ^\.github$
@@ -31,7 +31,7 @@ dev.R
 ^release.sh
 ^example1.png
 ^example2.png
-\.typ$
+^[^/]+\.typ$
 \.pdf$
 ^\.vscode$
 ^src/\.cargo$
