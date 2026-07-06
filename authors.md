@@ -9,13 +9,13 @@
 Source:
 [`DESCRIPTION`](https://github.com/y-sunflower/tynding/blob/main/DESCRIPTION)
 
-Barbier J (2026). *tynding: 'Typst' Bindings*. R package version 0.5.0,
+Barbier J (2026). *tynding: 'Typst' Bindings*. R package version 0.6.0,
 <https://y-sunflower.github.io/tynding/>.
 
     @Manual{,
       title = {tynding: 'Typst' Bindings},
       author = {Joseph Barbier},
       year = {2026},
-      note = {R package version 0.5.0},
+      note = {R package version 0.6.0},
       url = {https://y-sunflower.github.io/tynding/},
     }
